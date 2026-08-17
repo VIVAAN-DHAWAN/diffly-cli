@@ -56,7 +56,7 @@ For each changed file, the report lists the file status, additions and deletions
 
 ## Demo
 
-The committed demo section is generated from real public GitHub pull requests and records the raw diff statistics beside diffly-cli’s one-page deterministic summary. The short animated walkthrough below shows the intended review flow from command to deterministic verdict.
+The committed demo section is captured from real terminal sessions running diffly-cli against public GitHub pull requests. It records the raw diff statistics beside diffly-cli’s actual one-page deterministic summary; the screenshots and GIF are rendered from those terminal transcripts rather than generated mockups.
 
 ![diffly-cli animated demonstration](assets/diffly-cli-demo.gif)
 
