@@ -10,17 +10,15 @@ Large AI-generated pull requests can be difficult to review because file-by-file
 
 ## Install
 
-Requirements are Python 3.10 or newer and a GitHub token that can read public repositories. A token is optional for light public use, but authenticated requests provide much higher API limits.
+Requirements are Python 3.10 or newer. The installer creates an isolated environment under `~/.local/share/diffly-cli`, installs the package and its dependencies, and links the command into `~/.local/bin`.
 
 ```bash
-python -m venv .venv
-. .venv/bin/activate
-python -m pip install .
+curl -fsSL https://raw.githubusercontent.com/VIVAAN-DHAWAN/diffly-cli/main/install.sh | sh
 ```
 
-The package installs the `diffly-cli` command and uses Tree-sitter language packs for supported languages. The repository includes a lock-free, standard-library GitHub API client; no GitHub CLI installation is required to run the tool.
+That is the complete installation. If `diffly-cli` is not immediately found afterward, add `~/.local/bin` to your `PATH` and open a new shell. No GitHub CLI installation is required.
 
-Set a token if needed:
+A GitHub token is optional for light public use, but authenticated requests provide much higher API limits:
 
 ```bash
 export GITHUB_TOKEN="github_pat_..."
@@ -58,7 +56,17 @@ For each changed file, the report lists the file status, additions and deletions
 
 ## Demo
 
-The committed demo section is generated from real public GitHub pull requests and records the raw diff statistics beside diffly-cli’s one-page deterministic summary. It is updated as part of the Phase 1 validation run.
+The committed demo section is generated from real public GitHub pull requests and records the raw diff statistics beside diffly-cli’s one-page deterministic summary. The short animated walkthrough below shows the intended review flow from command to deterministic verdict.
+
+![diffly-cli animated demonstration](assets/diffly-cli-demo.gif)
+
+The same demos are available as standalone screenshots for sharing or issue discussions:
+
+| Pull request | Screenshot |
+| --- | --- |
+| `microsoft/vscode#330848` | ![VS Code pull-request triage screenshot](assets/screenshots/vscode-330848.png) |
+| `kubernetes/kubernetes#141413` | ![Kubernetes pull-request triage screenshot](assets/screenshots/kubernetes-141413.png) |
+| `astral-sh/ruff#27808` | ![Ruff pull-request triage screenshot](assets/screenshots/ruff-27808.png) |
 
 ### Demo A: microsoft/vscode#330848
 
