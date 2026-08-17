@@ -2,7 +2,7 @@
 
 **diffly-cli** is a deterministic, terminal-first triage tool for large GitHub pull requests. It fetches the pull request metadata, changed files, unified diff, commit metadata, status checks, and repository tree; parses supported source changes with Tree-sitter; identifies a conservative blast-radius map; applies fixed risk rules; and emits a one-page Markdown review with a `SHIP`, `QUARANTINE`, or `BLOCK` verdict.
 
-This is **Phase 1** of the product. It intentionally does not call an LLM. The prose “literate diff” explainer—background first, plain-language intent, and narrative code snippets—is planned for Phase 2 and is explicitly not part of this release.
+This release includes **Phase 1 deterministic triage** plus the optional **Phase 2 literate-diff explainer**. Deterministic facts and verdicts remain authoritative; generated prose is clearly labeled and cannot change `SHIP`, `QUARANTINE`, or `BLOCK`.
 
 ## Why it exists
 
@@ -29,6 +29,16 @@ export GITHUB_TOKEN="github_pat_..."
 ```bash
 diffly-cli pr <owner/repo> <pr-number>
 ```
+
+Add the optional literate-diff explanation with an OpenAI-compatible BYOK endpoint:
+
+```bash
+export DIFFLY_LLM_API_KEY="your-key"
+export DIFFLY_LLM_BASE_URL="https://api.openai.com/v1"  # omit for the configured default endpoint
+diffly-cli pr <owner/repo> <pr-number> --explain
+```
+
+The default model is `gpt-5-mini`; override it with `DIFFLY_LLM_MODEL` or `--llm-model`. The explainer sends bounded, redacted context, requires strict JSON output, rejects citations to files outside the changed-file set, and fails safely back to deterministic triage when no key is configured or the model response is invalid. Use `--json` with `--explain` to receive the structured literate-diff object.
 
 Examples:
 
@@ -93,15 +103,22 @@ Full generated report: [`demo/kubernetes-141413.md`](demo/kubernetes-141413.md).
 
 Raw GitHub PR statistics: **49 files**, **+1,675 / -254 lines**, **1 commit**. The tool returned `BLOCK` because observed checks failed, including CodSpeed and benchmark jobs.
 
-Full generated report: [`demo/ruff-27808.md`](demo/ruff-27808.md).
+Full deterministic report: [`demo/ruff-27808.md`](demo/ruff-27808.md).
+
+### Phase 2 live literate-diff demos
+
+The following reports were generated from live `gpt-5-mini` calls using bounded, redacted context from real public pull requests:
+
+- [`demo/ruff-27808-phase2.md`](demo/ruff-27808-phase2.md): generated narrative for a 49-file Ruff pull request while preserving the deterministic `BLOCK` verdict.
+- [`demo/kubernetes-141413-phase2.md`](demo/kubernetes-141413-phase2.md): generated narrative for a 41-file Kubernetes pull request while preserving the deterministic `QUARANTINE` verdict.
 
 ## Current limitations
 
-The **LLM-powered literate-diff explainer is not yet built**. There is no natural-language background/intent narrative, no model-generated code-snippet ordering, and no semantic explanation beyond deterministic metadata, symbol extraction, risk flags, and policy reasoning. Tree-sitter parsing currently focuses on symbols and direct calls visible in changed hunks, not a complete repository-wide reachability graph. Test coverage detection is heuristic and based on filenames and repository-tree evidence. GitHub checks are summarized from check runs and commit statuses; unavailable checks are quarantined rather than inferred to be passing.
+The Phase 2 explainer is optional and requires an OpenAI-compatible API key. It is not a substitute for human review and its prose is not allowed to influence the deterministic verdict. Tree-sitter parsing currently focuses on symbols and direct calls visible in changed hunks, not a complete repository-wide reachability graph. Test coverage detection is heuristic and based on filenames and repository-tree evidence. GitHub checks are summarized from check runs and commit statuses; unavailable checks are quarantined rather than inferred to be passing. The model context is bounded and may be truncated for unusually large pull requests.
 
 ## Roadmap
 
-Phase 2 will add a provider-neutral literate-diff layer that consumes the deterministic JSON report plus selected diff context. It should support an explicit BYOK API configuration, bounded context windows, redaction of secrets before model calls, structured output validation, and a visible distinction between deterministic facts and generated prose.
+Future work includes repository-wide symbol resolution, stronger test-to-production coverage mapping, configurable organization policies, and optional provider-specific adapters. The Phase 2 contract and safety boundary are documented in [`docs/phase-2-contract.md`](docs/phase-2-contract.md).
 
 ## License
 
