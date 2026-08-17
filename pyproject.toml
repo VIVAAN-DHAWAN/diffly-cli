@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "diffly-cli"
+version = "0.1.0"
+description = "Deterministic triage for large GitHub pull requests"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Manus AI" }]
+license = { file = "LICENSE" }
+keywords = ["github", "pull-request", "code-review", "blast-radius", "tree-sitter", "cli"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = [
+  "rich>=13.9",
+  "tree-sitter>=0.25",
+  "tree-sitter-language-pack>=1.10",
+]
+
+[project.scripts]
+diffly-cli = "diffly_cli.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/diffly_cli"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
