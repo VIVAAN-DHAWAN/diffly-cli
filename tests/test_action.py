@@ -1,16 +1,19 @@
 from __future__ import annotations
 
+import importlib.util
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
 
-import action.post_comment as post_comment
-
 
 ROOT = Path(__file__).parents[1]
 FORMATTER = ROOT / "action" / "format_comment.py"
+POST_COMMENT_PATH = ROOT / "action" / "post_comment.py"
+_spec = importlib.util.spec_from_file_location("diffly_post_comment", POST_COMMENT_PATH)
+assert _spec and _spec.loader
+post_comment = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(post_comment)
 
 
 def test_action_comment_contains_verdict_risk_and_collapsible_blast_radius(tmp_path: Path) -> None:

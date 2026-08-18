@@ -7,4 +7,4 @@ jobs:
   diffly:
     runs-on: ubuntu-latest
     steps:
-      - uses: VIVAAN-DHAWAN/diffly-cli@main
+      - uses: VIVAAN-DHAWAN/diffly-cli@phase3-action-and-benchmarks
