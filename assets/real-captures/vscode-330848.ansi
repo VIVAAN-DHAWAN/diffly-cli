@@ -1,4 +1,4 @@
-Script started on 2026-08-17 16:16:36+00:00 [COMMAND="cd "/home/ubuntu/diffly-cli" && printf '\033[1;32m$ diffly-cli pr microsoft/vscode 330848 --output /tmp/diffly-vscode-330848.md\033[0m\n' && diffly-cli pr microsoft/vscode 330848 --output /tmp/diffly-vscode-330848.md && printf '\n\033[1;32m$ head -34 /tmp/diffly-vscode-330848.md\033[0m\n' && head -34 "/tmp/diffly-vscode-330848.md"" TERM="xterm-256color" TTY="/dev/pts/24" COLUMNS="140" LINES="46"]
+Script started on 2026-08-18 11:10:58+00:00 [COMMAND="cd "/home/ubuntu/diffly-cli" && printf '\033[1;32m$ diffly-cli pr microsoft/vscode 330848 --output /tmp/diffly-vscode-330848.md\033[0m\n' && diffly-cli pr microsoft/vscode 330848 --output /tmp/diffly-vscode-330848.md && printf '\n\033[1;32m$ head -34 /tmp/diffly-vscode-330848.md\033[0m\n' && head -34 "/tmp/diffly-vscode-330848.md"" TERM="xterm-256color" TTY="/dev/pts/6" COLUMNS="140" LINES="46"]
 [1;32m$ diffly-cli pr microsoft/vscode 330848 --output /tmp/diffly-vscode-330848.md[0m
 Wrote [35m/tmp/[0m[95mdiffly-vscode-330848.md[0m
 
@@ -38,4 +38,4 @@ Changed production files have no obvious neighboring or repository test coverage
 - `src/vs/workbench/test/browser/componentFixtures/sessions/chatCompositeBar.fixture.ts`
 
 
-Script done on 2026-08-17 16:16:46+00:00 [COMMAND_EXIT_CODE="0"]
+Script done on 2026-08-18 11:11:01+00:00 [COMMAND_EXIT_CODE="0"]

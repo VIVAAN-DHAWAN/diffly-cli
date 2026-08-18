@@ -24,6 +24,25 @@ A GitHub token is optional for light public use, but authenticated requests prov
 export GITHUB_TOKEN="github_pat_..."
 ```
 
+## GitHub Action
+
+Add this compact workflow to have Diffly analyze every pull request and maintain one verdict comment with the risk flags and blast-radius summary:
+
+```yaml
+name: Diffly
+on: pull_request
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  diffly:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: VIVAAN-DHAWAN/diffly-cli@main
+```
+
+To enable the optional explainer in CI, add `DIFFLY_LLM_API_KEY: ${{ secrets.DIFFLY_LLM_API_KEY }}` under the Action step's `env`. Without a key, the Action runs deterministic-only.
+
 ## Usage
 
 ```bash
@@ -101,7 +120,7 @@ Full generated report: [`demo/kubernetes-141413.md`](demo/kubernetes-141413.md).
 
 ### Demo C: astral-sh/ruff#27808
 
-Raw GitHub PR statistics: **49 files**, **+1,675 / -254 lines**, **1 commit**. The tool returned `BLOCK` because observed checks failed, including CodSpeed and benchmark jobs.
+Raw GitHub PR statistics: **53 files**, **+1,845 / -274 lines**, **4 commits**. The tool returned `BLOCK` because the observed `CodSpeed Performance Analysis` check failed.
 
 Full deterministic report: [`demo/ruff-27808.md`](demo/ruff-27808.md).
 

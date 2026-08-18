@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Deterministic triage for large GitHub pull requests"
 readme = "README.md"
 requires-python = ">=3.10"
-authors = [{ name = "Manus AI" }]
+authors = [{ name = "Vivaan Dhawan" }]
 license = { file = "LICENSE" }
 keywords = ["github", "pull-request", "code-review", "blast-radius", "tree-sitter", "cli"]
 classifiers = [

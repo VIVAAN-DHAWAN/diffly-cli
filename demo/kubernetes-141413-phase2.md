@@ -246,68 +246,93 @@ The Phase 1 map is conservative: it identifies changed files, changed symbols, a
 
 ### Background
 
-This PR (kubernetes/kubernetes#141413) changes the scheduler code to replace uses of the scheduling API package k8s.io/api/scheduling/v1beta1 with k8s.io/api/scheduling/v1alpha3 in many files under pkg/scheduler. The PR was authored by anupamojha-eng, targets the master branch from head issue-141406, and contains 1 commit touching 41 files (708 additions, 740 deletions). The repository analysis tool returns a QUARANTINE verdict because at least one changed production file lacks obvious test coverage and because required status checks are pending.
+PR #141413 in kubernetes/kubernetes (title: "scheduler: migrate scheduling API usage from v1beta1 to v1alpha3") authored by anupamojha-eng modifies 41 files in pkg/scheduler, with 708 additions and 740 deletions. The change replaces references to k8s.io/api/scheduling/v1beta1 with k8s.io/api/scheduling/v1alpha3 inside the scheduler package. The deterministic verdict is QUARANTINE. The stated reasons are: at least one changed production file lacks obvious test coverage, and the required status checks are not confirmed passing (checks state: pending; pending checks include: "tide"). A flagged file for test-coverage concern is pkg/scheduler/testing/wrappers.go.
 
 ### Intent in plain language
 
-In plain language: the author is migrating the scheduler's internal usages of the PodGroup / CompositePodGroup scheduling API types from the v1beta1 package to the v1alpha3 package across the scheduler implementation and its tests. The change is a package/type replacement so the scheduler uses the v1alpha3 API objects and signatures.
+In plain language: this PR updates the scheduler package to use the newer scheduling API package path and types (v1alpha3) in place of the older v1beta1 types, by changing imports, function signatures, method receivers, and test code to reference PodGroup and CompositePodGroup from v1alpha3 instead of v1beta1.
 
 ### Narrative
 
-#### 1. Switch imports and API type usages in the cache layer
+#### 1. Bulk import and type reference replacement
 
-The cache package had its imports and function/type signatures updated so PodGroup (and related API objects) are now referenced from schedulingv1alpha3 instead of schedulingv1beta1. This affects public interface signatures (AddPodGroup/UpdatePodGroup/RemovePodGroup), internal state types (podGroupState/podGroupStateData), snapshot helpers used by tests, and test files.
-- Files: `pkg/scheduler/backend/cache/cache.go`, `pkg/scheduler/backend/cache/interface.go`, `pkg/scheduler/backend/cache/podgroupstate.go`, `pkg/scheduler/backend/cache/snapshot.go`, `pkg/scheduler/backend/cache/cache_test.go`, `pkg/scheduler/backend/cache/snapshot_test.go`
-- Evidence: pkg/scheduler/backend/cache/cache.go: import schedulingv1alpha3 "k8s.io/api/scheduling/v1alpha3" (removed schedulingv1beta1 import); pkg/scheduler/backend/cache/cache.go: func (l *podGroupListerImpl) Get(namespace, name string) (*schedulingv1alpha3.PodGroup, error) {; pkg/scheduler/backend/cache/interface.go: AddPodGroup(podGroup *schedulingv1alpha3.PodGroup); pkg/scheduler/backend/cache/podgroupstate.go: podGroup *schedulingv1alpha3.PodGroup; pkg/scheduler/backend/cache/snapshot.go: func NewTestSnapshotWithPodGroups(... podGroups []*schedulingv1alpha3.PodGroup) *Snapshot {; pkg/scheduler/backend/cache/cache_test.go: test type fields changed to *schedulingv1alpha3.PodGroup
+The change systematically replaces the scheduling API import and all direct uses of schedulingv1beta1 types with schedulingv1alpha3 equivalents in the scheduler backend cache. This includes removing the v1beta1 import and switching function parameter and return types for PodGroup-related APIs to the v1alpha3 PodGroup type.
+- Files: `pkg/scheduler/backend/cache/cache.go`, `pkg/scheduler/backend/cache/interface.go`, `pkg/scheduler/backend/cache/podgroupstate.go`, `pkg/scheduler/backend/cache/snapshot.go`, `pkg/scheduler/backend/cache/snapshot_test.go`
+- Evidence: pkg/scheduler/backend/cache/cache.go; pkg/scheduler/backend/cache/interface.go; pkg/scheduler/backend/cache/podgroupstate.go; pkg/scheduler/backend/cache/snapshot.go; pkg/scheduler/backend/cache/snapshot_test.go
 
 ```text
 func (l *podGroupListerImpl) Get(namespace, name string) (*schedulingv1alpha3.PodGroup, error) {
+
+// previously: (*schedulingv1beta1.PodGroup, error)
+
+AddPodGroup(podGroup *schedulingv1alpha3.PodGroup)
 ```
 
-#### 2. Adopt v1alpha3 PodGroup types in the scheduling queue and related forest
+#### 2. Adjust cache and pod-group state APIs and methods
 
-The scheduling queue and its forest that track PodGroups were updated to accept and store PodGroup objects from schedulingv1alpha3. This includes public queue API methods (AddPodGroup/UpdatePodGroup/DeletePodGroup), the PriorityQueue methods that implement them, helper functions like podGroupKey, and numerous tests which now create/expect v1alpha3 PodGroup objects.
-- Files: `pkg/scheduler/backend/queue/scheduling_queue.go`, `pkg/scheduler/backend/queue/scheduling_queue_test.go`, `pkg/scheduler/backend/queue/pod_group_member_pods_test.go`, `pkg/scheduler/backend/queue/workload_forest.go`
-- Evidence: pkg/scheduler/backend/queue/scheduling_queue.go: AddPodGroup(logger klog.Logger, podGroup *schedulingv1alpha3.PodGroup); pkg/scheduler/backend/queue/scheduling_queue.go: func (p *PriorityQueue) AddPodGroup(logger klog.Logger, podGroup *schedulingv1alpha3.PodGroup) {; pkg/scheduler/backend/queue/workload_forest.go: podGroups map[fwk.EntityKey]*schedulingv1alpha3.PodGroup; pkg/scheduler/backend/queue/scheduling_queue_test.go: var podGroupsToAdd []*schedulingv1alpha3.PodGroup; pkg/scheduler/backend/queue/pod_group_member_pods_test.go: clearGroup  *schedulingv1alpha3.PodGroup
+Method and function signatures that accept or return PodGroup objects were updated to the v1alpha3 PodGroup type. The internal pod-group state structures now hold pointers to schedulingv1alpha3.PodGroup instead of schedulingv1beta1.PodGroup.
+- Files: `pkg/scheduler/backend/cache/podgroupstate.go`, `pkg/scheduler/backend/cache/interface.go`, `pkg/scheduler/backend/cache/cache.go`
+- Evidence: pkg/scheduler/backend/cache/podgroupstate.go; pkg/scheduler/backend/cache/interface.go; pkg/scheduler/backend/cache/cache.go
 
 ```text
-func (p *PriorityQueue) AddPodGroup(logger klog.Logger, podGroup *schedulingv1alpha3.PodGroup) {
+type podGroupStateData struct {
+    podGroup *schedulingv1alpha3.PodGroup
+}
+
+func (d *podGroupStateData) setPodGroup(podGroup *schedulingv1alpha3.PodGroup) {
 ```
 
-#### 3. Update many tests to construct and assert against v1alpha3 objects
+#### 3. Update scheduling queue and workload forest to use new types
 
-Unit tests were updated to instantiate PodGroup and CompositePodGroup objects from the new v1alpha3 package. Test structs and helper variables that previously used v1beta1 types were changed accordingly. This indicates the author adjusted test code to match the API type migration.
-- Files: `pkg/scheduler/backend/cache/cache_test.go`, `pkg/scheduler/backend/cache/snapshot_test.go`, `pkg/scheduler/backend/queue/scheduling_queue_test.go`, `pkg/scheduler/backend/queue/pod_group_member_pods_test.go`, `pkg/scheduler/backend/queue/workload_forest.go`
-- Evidence: pkg/scheduler/backend/cache/cache_test.go: podGroupsToAdd           []*schedulingv1alpha3.PodGroup; pkg/scheduler/backend/cache/snapshot_test.go: initialPodGroups                []*schedulingv1alpha3.PodGroup; pkg/scheduler/backend/queue/scheduling_queue_test.go: podGroupsToAdd []*schedulingv1alpha3.PodGroup; pkg/scheduler/backend/queue/pod_group_member_pods_test.go: clearGroup  *schedulingv1alpha3.PodGroup
+Queue interfaces and implementations that previously took schedulingv1beta1.PodGroup were updated to use schedulingv1alpha3.PodGroup. The workload forest that tracks PodGroup objects in the queue now stores v1alpha3.PodGroup pointers. Tests referencing PodGroup types were also switched to v1alpha3.
+- Files: `pkg/scheduler/backend/queue/scheduling_queue.go`, `pkg/scheduler/backend/queue/workload_forest.go`, `pkg/scheduler/backend/queue/pod_group_member_pods_test.go`
+- Evidence: pkg/scheduler/backend/queue/scheduling_queue.go; pkg/scheduler/backend/queue/workload_forest.go; pkg/scheduler/backend/queue/pod_group_member_pods_test.go
 
 ```text
-podGroupsToAdd []*schedulingv1alpha3.PodGroup
+AddPodGroup(logger klog.Logger, podGroup *schedulingv1alpha3.PodGroup)
+
+func (wf *workloadForest) addPodGroup(podGroup *schedulingv1alpha3.PodGroup) {
+    pgKey := podGroupKey(podGroup)
 ```
 
-#### 4. Local helper and snapshot functions updated to accept v1alpha3 PodGroups
+#### 4. Test updates to reference v1alpha3 PodGroup/CompositePodGroup
 
-Snapshot helpers used by tests were updated to accept slices of v1alpha3.PodGroup and to return snapshot lister items typed with v1alpha3.PodGroup. These are testing helpers that construct in-memory snapshots with PodGroups and CompositePodGroups.
-- Files: `pkg/scheduler/backend/cache/snapshot.go`, `pkg/scheduler/backend/cache/snapshot_test.go`
-- Evidence: pkg/scheduler/backend/cache/snapshot.go: func NewTestSnapshotWithPodGroups(... podGroups []*schedulingv1alpha3.PodGroup) *Snapshot {; pkg/scheduler/backend/cache/snapshot.go: func NewTestSnapshotWithCompositePodGroups(... podGroups []*schedulingv1alpha3.PodGroup, compositePodGroups []*schedulingv1alpha3.CompositePodGroup) *Snapshot {; pkg/scheduler/backend/cache/snapshot.go: func (l *podGroupSnapshotListerImpl) Get(namespace, name string) (*schedulingv1alpha3.PodGroup, error) {
+Unit tests that constructed or asserted against PodGroup and CompositePodGroup fixtures were updated to construct v1alpha3 types (for example changing []*schedulingv1beta1.PodGroup to []*schedulingv1alpha3.PodGroup). This keeps tests aligned with the updated production signatures in the scheduler package.
+- Files: `pkg/scheduler/backend/cache/cache_test.go`, `pkg/scheduler/backend/cache/snapshot_test.go`, `pkg/scheduler/backend/queue/scheduling_queue_test.go`
+- Evidence: pkg/scheduler/backend/cache/cache_test.go; pkg/scheduler/backend/cache/snapshot_test.go; pkg/scheduler/backend/queue/scheduling_queue_test.go
 
 ```text
-func NewTestSnapshotWithPodGroups(pods []*v1.Pod, nodes []*v1.Node, podGroups []*schedulingv1alpha3.PodGroup) *Snapshot {
+var podGroupsToAdd []*schedulingv1alpha3.PodGroup
+
+initialPodGroups := []*schedulingv1alpha3.PodGroup{ st.MakePodGroup().Name("pg1").Namespace("ns").Obj() }
+```
+
+#### 5. Small helpers and keys adapted to new PodGroup type
+
+Helper functions such as podGroupKey and other functions that accept PodGroup objects were updated to accept the v1alpha3 type, ensuring consistent typing across the queue package.
+- Files: `pkg/scheduler/backend/queue/scheduling_queue.go`
+- Evidence: pkg/scheduler/backend/queue/scheduling_queue.go
+
+```text
+func podGroupKey(podGroup *schedulingv1alpha3.PodGroup) fwk.EntityKey {
+    return fwk.PodGroupKey(podGroup.Namespace, podGroup.Name)
+}
 ```
 
 ### Review questions
 
-- Have you run the full repository test suite and verified compilation against the rest of the codebase and modules that may still expect v1beta1? The PR changes many types but the checks state shows pending results.
-- Are there other packages (outside pkg/scheduler) or third-party code that still import k8s.io/api/scheduling/v1beta1 which would require a coordinated update?
-- Does the API contract between v1beta1 and v1alpha3 differ in semantics or fields relevant to PodGroup/CompositePodGroup that require logic changes beyond type replacement?
-- Is any code generation, clientset, or CRD registration required when moving from v1beta1 to v1alpha3, and has that been handled?
-- The QUARANTINE verdict cites no obvious test coverage in 'pkg/scheduler/testing/wrappers.go'. Is that file intentionally unchanged and should tests be added to cover production changes there?
+- Does the v1alpha3 PodGroup/CompositePodGroup type have any semantic or field-level differences from v1beta1 that require conversion logic? (The change only alters imports and types; I don't see conversion or migration logic in the provided diffs.)
+- Were all references across the entire repository updated, or only the pkg/scheduler package? (The PR body says pkg/scheduler only.)
+- Are there consumers outside of pkg/scheduler (other packages or external controllers) that still expect v1beta1 types and need corresponding updates or conversion?
+- Has this change been compiled and validated with the full test matrix? The checks are pending ("tide"), and the verdict lists QUARANTINE due to missing obvious test coverage for at least one changed production file (pkg/scheduler/testing/wrappers.go). Has CI been run to completion?
+- Are there API-level compatibility guarantees or feature-gate implications for switching from v1beta1 to v1alpha3 that maintainers want confirmed before merging?
 
 ### Uncertainties
 
-- I cannot confirm from the supplied patch whether the change compiles across the whole repository (only a subset of files under pkg/scheduler are shown). The checks reporting are 'pending' (evidence: tide pending) and there is no confirmed passing CI.
-- It is not explicit whether API-level differences between v1beta1 and v1alpha3 (beyond package and type names) require behavioral changes — the diff shows only type replacements, but semantic differences (if any) aren't visible here.
-- The QUARANTINE verdict mentions missing test coverage for at least one production file 'pkg/scheduler/testing/wrappers.go' — that file is not shown in the changed-file excerpts, so I cannot determine whether it should have been updated or covered by tests.
-- I cannot determine from the provided context whether any downstream consumers (external or internal) depend on v1beta1 and will break when the scheduler uses v1alpha3.
+- The provided diffs show only type/import substitutions; there is not enough context to confirm whether v1alpha3 is a drop-in replacement (no field changes) for v1beta1. If fields changed between versions, additional conversion or behavior changes may be required — the diff does not show any such conversions.
+- I cannot tell from the supplied context whether a full build and test suite was executed successfully. The DETECTED checks state is pending and the PR verdict is QUARANTINE, so the change may not have passing CI yet.
+- The risk-flagged file pkg/scheduler/testing/wrappers.go is noted as lacking obvious neighboring test coverage; that file is not present in the changed-file excerpts shown here, so I cannot inspect whether it was modified or why coverage is missing.
+- The diffs shown are truncated and focus on scheduler internals. There may be other occurrences of schedulingv1beta1 elsewhere in the repository that the patch did not change; I cannot confirm global consistency from the provided snippets alone.
 
 ## Changed-file inventory
 

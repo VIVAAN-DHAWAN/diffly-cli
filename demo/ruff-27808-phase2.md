@@ -3,7 +3,7 @@
 **Title:** [ty] Distinguish TypeVarTuple arguments from uninhabited runtime tuples
 **Author:** @AlexWaygood  
 **Refs:** `main` ← `alex/typevartuple-never-semantics`  
-**Commits:** 1 · **Files:** 49 · **Lines:** +1675 / -254
+**Commits:** 4 · **Files:** 53 · **Lines:** +1845 / -274
 
 ## Verdict
 
@@ -22,6 +22,7 @@
 ### `NO_TEST_COVERAGE` — MEDIUM
 Changed production files have no obvious neighboring or repository test coverage.
 - `crates/ty_python_semantic/resources/mdtest/call/functools_partial.md`
+- `crates/ty_python_semantic/resources/mdtest/function/return_type.md`
 - `crates/ty_python_semantic/resources/mdtest/generics/legacy/typevartuple.md`
 - `crates/ty_python_semantic/resources/mdtest/generics/pep695/typevartuple.md`
 - `crates/ty_python_semantic/resources/mdtest/subscript/tuple.md`
@@ -34,6 +35,7 @@ Changed production files have no obvious neighboring or repository test coverage
 - `crates/ty_python_semantic/resources/mdtest/type_properties/tuples_containing_never.md`
 - `crates/ty_python_semantic/src/types/call/bind.rs`
 - `crates/ty_python_semantic/src/types/call/bind/constructor.rs`
+- `crates/ty_python_semantic/src/types/class/static_literal.rs`
 - `crates/ty_python_semantic/src/types/equality/enums.rs`
 - `crates/ty_python_semantic/src/types/infer/builder/attribute_assignment.rs`
 - `crates/ty_python_semantic/src/types/infer/builder/type_form.rs`
@@ -69,6 +71,11 @@ The Phase 1 map is conservative: it identifies changed files, changed symbols, a
 - Direct callers: none detected in changed hunks
 - Related tests: `crates/ty_python_semantic/resources/mdtest/diagnostics/special_form_attributes.md`
 
+### `crates/ty_python_semantic/resources/mdtest/function/return_type.md` (modified, +26/-0)
+- Touched symbols: none detected
+- Direct callers: none detected in changed hunks
+- Related tests: none detected
+
 ### `crates/ty_python_semantic/resources/mdtest/generics/legacy/typevartuple.md` (modified, +60/-0)
 - Touched symbols: none detected
 - Direct callers: none detected in changed hunks
@@ -79,7 +86,7 @@ The Phase 1 map is conservative: it identifies changed files, changed symbols, a
 - Direct callers: none detected in changed hunks
 - Related tests: none detected
 
-### `crates/ty_python_semantic/resources/mdtest/pep695_type_aliases.md` (modified, +224/-2)
+### `crates/ty_python_semantic/resources/mdtest/pep695_type_aliases.md` (modified, +254/-2)
 - Touched symbols: none detected
 - Direct callers: none detected in changed hunks
 - Related tests: `crates/ty_python_semantic/resources/mdtest/comparison/instances/membership_test.md`, `crates/ty_python_semantic/resources/mdtest/diagnostics/special_form_attributes.md`, `crates/ty_python_semantic/resources/mdtest/snapshots/special_form_attribu…_-_Diagnostics_for_inva…_(249d635e74a41c9e).snap`, `crates/ty_python_semantic/resources/mdtest/comparison/instances/membership_test.md`
@@ -154,7 +161,7 @@ The Phase 1 map is conservative: it identifies changed files, changed symbols, a
 - Direct callers: none detected in changed hunks
 - Related tests: `crates/ty_python_semantic/src/types/infer/tests.rs`, `crates/ty_python_semantic/src/types/special_form.rs`, `crates/ty_python_semantic/src/types/tests.rs`, `crates/ty_python_semantic/src/types/tests.rs`
 
-### `crates/ty_python_semantic/src/types.rs` (modified, +60/-18)
+### `crates/ty_python_semantic/src/types.rs` (modified, +88/-10)
 - Touched symbols: none detected
 - Direct callers: none detected in changed hunks
 - Related tests: `crates/ty_python_semantic/src/types/infer/tests.rs`, `crates/ty_python_semantic/src/types/special_form.rs`, `crates/ty_python_semantic/src/types/tests.rs`, `crates/ty_python_semantic/src/types/tests.rs`
@@ -169,7 +176,7 @@ The Phase 1 map is conservative: it identifies changed files, changed symbols, a
 - Direct callers: none detected in changed hunks
 - Related tests: `crates/ty_python_semantic/src/types/infer/tests.rs`, `crates/ty_python_semantic/src/types/special_form.rs`, `crates/ty_python_semantic/src/types/tests.rs`, `crates/ty_python_semantic/src/types/tests.rs`
 
-### `crates/ty_python_semantic/src/types/call/bind.rs` (modified, +34/-20)
+### `crates/ty_python_semantic/src/types/call/bind.rs` (modified, +33/-20)
 - Touched symbols: none detected
 - Direct callers: none detected in changed hunks
 - Related tests: none detected
@@ -179,7 +186,17 @@ The Phase 1 map is conservative: it identifies changed files, changed symbols, a
 - Direct callers: none detected in changed hunks
 - Related tests: none detected
 
-### `crates/ty_python_semantic/src/types/constraints.rs` (modified, +44/-36)
+### `crates/ty_python_semantic/src/types/class.rs` (modified, +15/-5)
+- Touched symbols: none detected
+- Direct callers: none detected in changed hunks
+- Related tests: `crates/ty_python_semantic/src/types/infer/tests.rs`, `crates/ty_python_semantic/src/types/special_form.rs`, `crates/ty_python_semantic/src/types/tests.rs`, `crates/ty_python_semantic/src/types/tests.rs`
+
+### `crates/ty_python_semantic/src/types/class/static_literal.rs` (modified, +19/-10)
+- Touched symbols: none detected
+- Direct callers: none detected in changed hunks
+- Related tests: none detected
+
+### `crates/ty_python_semantic/src/types/constraints.rs` (modified, +47/-39)
 - Touched symbols: none detected
 - Direct callers: none detected in changed hunks
 - Related tests: `crates/ty_python_semantic/src/types/infer/tests.rs`, `crates/ty_python_semantic/src/types/special_form.rs`, `crates/ty_python_semantic/src/types/tests.rs`, `crates/ty_python_semantic/src/types/tests.rs`
@@ -229,7 +246,7 @@ The Phase 1 map is conservative: it identifies changed files, changed symbols, a
 - Direct callers: none detected in changed hunks
 - Related tests: `crates/ty_python_semantic/src/types/infer/tests.rs`
 
-### `crates/ty_python_semantic/src/types/instance.rs` (modified, +40/-4)
+### `crates/ty_python_semantic/src/types/instance.rs` (modified, +32/-4)
 - Touched symbols: none detected
 - Direct callers: none detected in changed hunks
 - Related tests: `crates/ty_python_semantic/src/types/infer/tests.rs`, `crates/ty_python_semantic/src/types/special_form.rs`, `crates/ty_python_semantic/src/types/tests.rs`, `crates/ty_python_semantic/src/types/tests.rs`
@@ -254,7 +271,7 @@ The Phase 1 map is conservative: it identifies changed files, changed symbols, a
 - Direct callers: none detected in changed hunks
 - Related tests: `crates/ty_python_semantic/src/types/infer/tests.rs`, `crates/ty_python_semantic/src/types/special_form.rs`, `crates/ty_python_semantic/src/types/tests.rs`, `crates/ty_python_semantic/src/types/tests.rs`
 
-### `crates/ty_python_semantic/src/types/relation.rs` (modified, +79/-7)
+### `crates/ty_python_semantic/src/types/relation.rs` (modified, +120/-16)
 - Touched symbols: none detected
 - Direct callers: none detected in changed hunks
 - Related tests: `crates/ty_python_semantic/src/types/infer/tests.rs`, `crates/ty_python_semantic/src/types/special_form.rs`, `crates/ty_python_semantic/src/types/tests.rs`, `crates/ty_python_semantic/src/types/tests.rs`
@@ -279,17 +296,22 @@ The Phase 1 map is conservative: it identifies changed files, changed symbols, a
 - Direct callers: none detected in changed hunks
 - Related tests: none detected
 
-### `crates/ty_python_semantic/src/types/tuple.rs` (modified, +91/-17)
+### `crates/ty_python_semantic/src/types/tuple.rs` (modified, +106/-17)
 - Touched symbols: none detected
 - Direct callers: none detected in changed hunks
 - Related tests: `crates/ty_python_semantic/src/types/infer/tests.rs`, `crates/ty_python_semantic/src/types/special_form.rs`, `crates/ty_python_semantic/src/types/tests.rs`, `crates/ty_python_semantic/src/types/tests.rs`
 
-### `crates/ty_python_semantic/src/types/type_alias.rs` (modified, +47/-6)
+### `crates/ty_python_semantic/src/types/type_alias.rs` (modified, +48/-6)
 - Touched symbols: none detected
 - Direct callers: none detected in changed hunks
 - Related tests: `crates/ty_python_semantic/src/types/infer/tests.rs`, `crates/ty_python_semantic/src/types/special_form.rs`, `crates/ty_python_semantic/src/types/tests.rs`, `crates/ty_python_semantic/src/types/tests.rs`
 
 ### `crates/ty_python_semantic/src/types/typed_dict.rs` (modified, +33/-15)
+- Touched symbols: none detected
+- Direct callers: none detected in changed hunks
+- Related tests: `crates/ty_python_semantic/src/types/infer/tests.rs`, `crates/ty_python_semantic/src/types/special_form.rs`, `crates/ty_python_semantic/src/types/tests.rs`, `crates/ty_python_semantic/src/types/tests.rs`
+
+### `crates/ty_python_semantic/src/types/typevar.rs` (modified, +1/-1)
 - Touched symbols: none detected
 - Direct callers: none detected in changed hunks
 - Related tests: `crates/ty_python_semantic/src/types/infer/tests.rs`, `crates/ty_python_semantic/src/types/special_form.rs`, `crates/ty_python_semantic/src/types/tests.rs`, `crates/ty_python_semantic/src/types/tests.rs`
@@ -302,89 +324,83 @@ The Phase 1 map is conservative: it identifies changed files, changed symbols, a
 
 ### Background
 
-This PR changes how the type system distinguishes between two uses of tuple-shaped type lists: (a) a runtime tuple type (a product of runtime values), and (b) a variadic type-argument sequence (a TypeVarTuple / argument pack). The motivation is that a runtime tuple containing a required Never element is uninhabited and should behave like Never (and be disjoint from every type), while a TypeVarTuple specialization may legitimately include Never as a type argument and should preserve its argument shape.
+This PR addresses a semantic mismatch introduced earlier: tuple type annotations that contain a required Never element look similar to TypeVarTuple argument sequences that contain Never, but they mean different things at runtime. The author introduces an explicit role for tuple specifications so the type system can keep a full variadic argument sequence for generic specializations while still treating runtime tuples that require a Never element as uninhabited (i.e., equivalent to Never). The branch is alex/typevartuple-never-semantics against main, 4 commits, 53 changed files, and the repository check suite shows a blocking status because at least one check (CodSpeed Performance Analysis) failed.
 
 ### Intent in plain language
 
-Introduce an explicit role distinction for tuple specifications so identical element sequences can have different semantics depending on whether they describe a runtime tuple value or a variadic type-argument pack. Preserve full variadic argument shape (including Never elements and their positions and fixed lengths) for TypeVarTuple-related operations while treating runtime tuples with required Never elements as uninhabited (equivalent to Never). Update the repository's specification tests and documentation to reflect the new semantics.
+Make the type system distinguish two uses of tuple-like specifications: (1) runtime tuple types (product types) whose elements determine inhabitance (a mandatory Never element makes the tuple uninhabited), and (2) TypeVarTuple / variadic generic argument sequences where Never is a legitimate type argument that must be preserved in the argument sequence. Preserve the full shape of variadic argument sequences through inference and relation checking while keeping runtime tuple semantics correctly simplified to Never when appropriate.
 
 ### Narrative
 
-#### 1. Why this change was proposed
+#### 1. Introduce a distinct role for tuple specifications
 
-Previously, the implementation preserved Never elements inside variadic specializations in a way that blurred the difference between an argument pack containing Never and a runtime tuple that has a required Never element. The PR asserts the need to treat those two meanings differently: a runtime tuple with a required Never element has no inhabitants and should be equivalent to Never, whereas a TypeVarTuple argument sequence like Container[int, Never] is a valid specialization and must keep the Never argument and its position.
-- Files: `crates/ty_python_semantic/resources/mdtest/type_compendium/tuple.md`, `crates/ty_python_semantic/resources/mdtest/type_compendium/never.md`
-- Evidence: From type_compendium/tuple.md: static_assert(is_equivalent_to(tuple[Never], Never)); From type_compendium/never.md: static_assert(is_equivalent_to(tuple[int, Never], Never))
+The central design change is to record a TupleRole (interned) on TupleType representations so the same element sequence can be treated either as a runtime tuple type or as a TypeVarTuple/argument pack. The documentation and examples were updated to show that unpacking or specializing generics preserves explicit Never elements in TypeVarTuple specializations, while runtime tuple types containing a required Never element simplify to Never for inhabitance reasoning.
+- Files: `crates/ty_python_semantic/resources/mdtest/generics/pep695/typevartuple.md`, `crates/ty_python_semantic/resources/mdtest/generics/legacy/typevartuple.md`
+- Evidence: crates/ty_python_semantic/resources/mdtest/generics/pep695/typevartuple.md; crates/ty_python_semantic/resources/mdtest/generics/legacy/typevartuple.md
+
+```text
+def check(first: Container[*tuple[int, Never]], ...) -> None:
+    reveal_type(first)  # revealed: Container[int, Never]
+```
+
+#### 2. Expose the behavioral difference in many doc-tests (mdtest)
+
+A large number of mdtest files were edited to capture the new semantics: runtime tuples that include a required Never are now asserted equivalent to Never, while homogenous variable-length tuples (tuple[Never, ...]) remain inhabited by the empty tuple. These edits show where behavior changed (equivalence and indexing examples) and how callers should expect simplifications for runtime tuple types containing Never.
+- Files: `crates/ty_python_semantic/resources/mdtest/type_compendium/tuple.md`, `crates/ty_python_semantic/resources/mdtest/type_compendium/never.md`, `crates/ty_python_semantic/resources/mdtest/subscript/tuple.md`
+- Evidence: crates/ty_python_semantic/resources/mdtest/type_compendium/never.md; crates/ty_python_semantic/resources/mdtest/type_compendium/tuple.md; crates/ty_python_semantic/resources/mdtest/subscript/tuple.md
 
 ```text
 static_assert(is_equivalent_to(tuple[int, Never], Never))
-```
-
-#### 2. Representation change: tuple role separation
-
-The PR introduces a conceptual representation change: tuple specifications carry an explicit role (interned TupleRole) that marks whether they describe a runtime tuple or a TypeVarTuple argument pack. Interning the role means the same element sequence can be represented twice with distinct meanings, preventing the runtime semantics of an impossible tuple from erasing the shape of a variadic argument pack.
-- Files: `crates/ty_python_semantic/resources/mdtest/generics/pep695/typevartuple.md`, `crates/ty_python_semantic/resources/mdtest/generics/legacy/typevartuple.md`
-- Evidence: From generics/pep695/typevartuple.md: reveal_type(first)  # revealed: Container[int, Never]; From generics/legacy/typevartuple.md: reveal_type(Factory(1, value))  # revealed: Factory[int, Never]
-
-```text
-class Container[*Ts]: ...  # argument packs preserve Never
-```
-
-#### 3. Marking and propagation at variadic boundaries
-
-Argument packs are marked when variadic generic arguments or TypeVarTuple constraints are constructed. Once marked, the pack's full shape (fixed prefix/suffix, element positions including Never, and length information) is preserved through inference, constructor specialization, callable signatures, and relation checking. The test and doc updates show examples for constructor inference and binding (functools.partial) that keep Never in place rather than dropping or collapsing it to bottom semantics in the variadic argument context.
-- Files: `crates/ty_python_semantic/resources/mdtest/generics/pep695/typevartuple.md`, `crates/ty_python_semantic/resources/mdtest/generics/legacy/typevartuple.md`, `crates/ty_python_semantic/resources/mdtest/call/functools_partial.md`
-- Evidence: From generics/pep695/typevartuple.md: reveal_type(Factory(1, value))  # revealed: Factory[Literal[1], Never]; From generics/legacy/typevartuple.md: reveal_type(Factory(1, value))  # revealed: Factory[int, Never]; From call/functools_partial.md: reveal_type(partial(f, value))  # revealed: partial[(first: tuple[Never], second: int) -> None]
-
-```text
-reveal_type(Factory(1, value))  # revealed: Factory[int, Never]
-```
-
-#### 4. Runtime tuple semantics tightened (tuples containing Never become Never)
-
-Documentation and test expectations were updated to mark runtime tuples that contain a required Never element as equivalent to Never and therefore disjoint from every type (including themselves). This affects is_equivalent_to, is_disjoint_from, and assignability assertions, and indexing behavior for homogeneous portions that are uninhabited.
-- Files: `crates/ty_python_semantic/resources/mdtest/type_compendium/never.md`, `crates/ty_python_semantic/resources/mdtest/type_properties/is_disjoint_from.md`, `crates/ty_python_semantic/resources/mdtest/type_properties/is_assignable_to.md`, `crates/ty_python_semantic/resources/mdtest/subscript/tuple.md`
-- Evidence: From type_compendium/never.md: static_assert(is_equivalent_to(tuple[int, Never], Never)); From is_disjoint_from.md: static_assert(is_equivalent_to(tuple[Never], Never)) and static_assert(is_disjoint_from(tuple[Never], tuple[Never])); From is_assignable_to.md: static_assert(is_assignable_to(Any, tuple[Never])); From subscript/tuple.md: reveal_type(empty)  # revealed: tuple[()]  and empty[0]  # error: [index-out-of-bounds]
-
-```text
-static_assert(is_equivalent_to(tuple[Never], Never))
-```
-
-#### 5. Special-case: homogeneous variable-length tuples remain inhabited by the empty tuple
-
-The PR keeps a distinction for homogeneous variable-length tuples: tuple[Never, ...] is still inhabited by the empty tuple, so it is not equivalent to Never. The test updates explicitly preserve this earlier exception while tightening semantics for fixed-length tuples that include a required Never element.
-- Files: `crates/ty_python_semantic/resources/mdtest/type_compendium/never.md`, `crates/ty_python_semantic/resources/mdtest/type_compendium/tuple.md`
-- Evidence: From type_compendium/never.md: static_assert(not is_equivalent_to(tuple[Never, ...], Never)); From type_compendium/tuple.md: static_assert(is_equivalent_to(tuple[Never], Never)) and adjacent examples showing homogeneous portions collapsing to empty sequences
-
-```text
 static_assert(not is_equivalent_to(tuple[Never, ...], Never))
 ```
 
-#### 6. Tests and documentation updated across many spec files
+#### 3. Preserve Never elements in variadic generic inference and defaults
 
-A large set of mdtest resource files were edited to reflect the new semantics: examples, static asserts, diagnostic snapshots, and reveal_type expectations were updated to show tuples with required Never elements collapsing to Never, while TypeVarTuple-specializations preserve Never elements. Many of these changes are pedagogical/test fixtures that codify the new expected behavior.
-- Files: `crates/ty_python_semantic/resources/mdtest/generics/pep695/typevartuple.md`, `crates/ty_python_semantic/resources/mdtest/generics/legacy/typevartuple.md`, `crates/ty_python_semantic/resources/mdtest/type_compendium/tuple.md`, `crates/ty_python_semantic/resources/mdtest/type_compendium/never.md`, `crates/ty_python_semantic/resources/mdtest/call/functools_partial.md`, `crates/ty_python_semantic/resources/mdtest/subscript/tuple.md`, `crates/ty_python_semantic/resources/mdtest/type_properties/is_assignable_to.md`, `crates/ty_python_semantic/resources/mdtest/type_properties/is_disjoint_from.md`
-- Evidence: From call/functools_partial.md: reveal_type(partial(f, value))  # revealed: partial[(first: tuple[Never], second: int) -> None]; From generics/pep695/typevartuple.md: reveal_type(Factory(1, value))  # revealed: Factory[Literal[1], Never]; From type_compendium/tuple.md: static_assert(is_equivalent_to(tuple[int, *tuple[tuple[Never], ...], str], tuple[int, str]))
+Multiple examples were added demonstrating that constructor inference, default type arguments, and unpacking retain the exact position and presence of Never elements inside a variadic specialization. These examples document expected revealed types like Factory[int, Never] or WithNeverDefault[int, Never] so tooling and type-checker behavior keep the full argument sequence for generics.
+- Files: `crates/ty_python_semantic/resources/mdtest/generics/pep695/typevartuple.md`, `crates/ty_python_semantic/resources/mdtest/generics/legacy/typevartuple.md`, `crates/ty_python_semantic/resources/mdtest/pep695_type_aliases.md`
+- Evidence: crates/ty_python_semantic/resources/mdtest/generics/legacy/typevartuple.md; crates/ty_python_semantic/resources/mdtest/generics/pep695/typevartuple.md; crates/ty_python_semantic/resources/mdtest/pep695_type_aliases.md
 
 ```text
+reveal_type(Factory(1, value))  # revealed: Factory[Literal[1], Never]
+reveal_type(WithNeverDefault())  # revealed: WithNeverDefault[int, Never]
+```
+
+#### 4. Update related diagnostics and higher-level behaviors
+
+The change ripples into diagnostics and inference behaviors: examples were added to show how invariance, promotion, and partial() binding behave when uninhabited tuple parameters or variadic arguments are present. These edits document how the invariant/variance and callable construction logic should treat argument packs that contain Never.
+- Files: `crates/ty_python_semantic/resources/mdtest/diagnostics/error_context.md`, `crates/ty_python_semantic/resources/mdtest/call/functools_partial.md`, `crates/ty_python_semantic/resources/mdtest/promotion.md`
+- Evidence: crates/ty_python_semantic/resources/mdtest/diagnostics/error_context.md; crates/ty_python_semantic/resources/mdtest/call/functools_partial.md; crates/ty_python_semantic/resources/mdtest/promotion.md
+
+```text
+def f(first: tuple[Never], second: int) -> None: ...
 reveal_type(partial(f, value))  # revealed: partial[(first: tuple[Never], second: int) -> None]
+```
+
+#### 5. Concrete adjustments to equivalence/assignability examples
+
+Tests and static_assert samples were changed to reflect the new normalization: e.g., tuple[int, Never] is now asserted equivalent to Never, and assignability examples treat tuple[Never] as the bottom type in places where prior semantics kept its shape. These are direct behavioral assertions that callers and internal relations must follow.
+- Files: `crates/ty_python_semantic/resources/mdtest/ty_extensions.md`, `crates/ty_python_semantic/resources/mdtest/type_properties/is_assignable_to.md`
+- Evidence: crates/ty_python_semantic/resources/mdtest/ty_extensions.md; crates/ty_python_semantic/resources/mdtest/type_properties/is_assignable_to.md
+
+```text
+static_assert(is_equivalent_to(tuple[int, Never], Never))
+static_assert(is_assignable_to(Any, tuple[Never]))
 ```
 
 ### Review questions
 
-- Where in the source tree is the new TupleRole type defined and interned? (I can't locate the core implementation diff from the provided mdtest-only contexts.)
-- Do unit tests (beyond mdtest resource examples) exercise the new role separation in inference and relation-checking code paths (e.g., in crates/ty_python_semantic/src/types/...)?
-- The repository's performance check 'CodSpeed Performance Analysis' failed — do the implementation changes introduce measurable allocation or interning overhead that needs addressing?
-- Are there any interactions with recursive alias normalization, ParamSpec, or Self that were not covered by the edited mdtests and might still break? (Several mdtest files added examples for recursive/growing aliases, but I cannot confirm code-level coverage.)
-- Has the distinction between argument-pack roles and runtime tuples been propagated to all places that materialize or simplify tuple types (materialization, canonicalization, serialization, equality tests)?
+- Where in the core type-representation code (crates/ty_python_semantic/src/...) is the new TupleRole type defined and interned, and are all consumers of tuple equality/identity updated to consider role? (core implementation diffs are not present in the supplied context.)
+- The PR updates many mdtest files (documentation-style tests). Are there unit or integration tests (non-mdtest) exercising the new TupleRole logic and relation-checking code paths? The risk flags list 'NO_TEST_COVERAGE' for a number of production files — were tests added to cover the changed logic in inference and relation builder modules?
+- CodSpeed Performance Analysis failed (blocking). Did the interning of roles or any new bookkeeping add measurable overhead in hot code paths (e.g., type equality, caching)? Can we see profiling or benchmark diffs that explain the CodSpeed failure?
+- Does the new role affect caching keys for interned tuple types and any global caches used by type relation or materialization logic? Are cache invalidations or comparisons updated accordingly?
+- Are callers that expect a tuple annotation to remain a concrete structural type (e.g., user-defined tuple subclasses) still handled correctly where a runtime tuple simplifies to Never? The mdtests show many assertions, but I want to confirm semantic edges like subclass reasoning are considered.
 
 ### Uncertainties
 
-- The provided changed-file contexts are primarily documentation/mdtest updates. The authoritative deterministic facts describe an implementation change (an interned TupleRole and marking at variadic boundaries), but I cannot see the actual source diffs for the core type system changes (no concrete files like 'src/types/tuple.rs' were shown in the provided context).
-- I cannot confirm the exact filenames or code locations where TupleRole or its interning were added, nor the API by which a tuple spec is marked as an argument pack. The PR body describes the change, but the code-level edits that implement interning and propagation are not included in the supplied diffs.
-- The 'NO_TEST_COVERAGE' risk flag lists production files (e.g., crates/ty_python_semantic/src/types/...) that were changed but there are no obvious unit tests shown in the supplied contexts to cover those production changes.
-- The failing status check 'CodSpeed Performance Analysis' is listed as a blocker (BLOCK). The provided context does not include profiling output or details explaining which change triggered the regression.
-- I cannot verify whether additional edge cases (e.g., interaction with backward-compatibility for older TypeVarTuple backports, or with third-party tooling) were considered beyond the updated mdtests.
+- The supplied changed-file context is predominantly mdtest documentation edits; the PR message describes a core implementation change (an interned TupleRole), but the actual source-code diffs implementing TupleRole (likely under crates/ty_python_semantic/src/...) are not shown in the provided context. I cannot verify code-level changes, call sites, or whether all equality/relational consumers were updated.
+- The CodSpeed Performance Analysis check failed (the verdict is BLOCK). The context does not include the performance report details, so I cannot determine which code paths regressed or whether the failure is due to test coverage, measurement noise, or a real performance regression introduced by interning or new logic.
+- The 'NO_TEST_COVERAGE' risk flag lists many files that were changed but lack obvious neighboring tests. From the provided context I cannot tell whether new unit/integration tests were added outside the mdtest resources, or whether the mdtests suffice as coverage for the changed behavior.
+- I cannot confirm whether any public API surface or downstream consumers (other crates) rely on tuple identity semantics that might be subtly affected by introducing a TupleRole; the changes shown are just the mdtests and documentation examples.
 
 ## Changed-file inventory
 
@@ -394,9 +410,10 @@ reveal_type(partial(f, value))  # revealed: partial[(first: tuple[Never], second
 | `crates/ty_python_semantic/resources/mdtest/call/functools_partial.md` | modified | 29 | 0 | — |
 | `crates/ty_python_semantic/resources/mdtest/comparison/instances/membership_test.md` | modified | 13 | 1 | — |
 | `crates/ty_python_semantic/resources/mdtest/diagnostics/error_context.md` | modified | 30 | 0 | — |
+| `crates/ty_python_semantic/resources/mdtest/function/return_type.md` | modified | 26 | 0 | — |
 | `crates/ty_python_semantic/resources/mdtest/generics/legacy/typevartuple.md` | modified | 60 | 0 | — |
 | `crates/ty_python_semantic/resources/mdtest/generics/pep695/typevartuple.md` | modified | 322 | 2 | — |
-| `crates/ty_python_semantic/resources/mdtest/pep695_type_aliases.md` | modified | 224 | 2 | — |
+| `crates/ty_python_semantic/resources/mdtest/pep695_type_aliases.md` | modified | 254 | 2 | — |
 | `crates/ty_python_semantic/resources/mdtest/promotion.md` | modified | 53 | 0 | — |
 | `crates/ty_python_semantic/resources/mdtest/subscript/tuple.md` | modified | 23 | 0 | — |
 | `crates/ty_python_semantic/resources/mdtest/ty_extensions.md` | modified | 1 | 1 | — |
@@ -411,12 +428,14 @@ reveal_type(partial(f, value))  # revealed: partial[(first: tuple[Never], second
 | `crates/ty_python_semantic/resources/mdtest/typed_dict.md` | modified | 12 | 0 | — |
 | `crates/ty_python_semantic/resources/mdtest/union_types.md` | modified | 3 | 4 | — |
 | `crates/ty_python_semantic/src/reachability.rs` | modified | 5 | 3 | — |
-| `crates/ty_python_semantic/src/types.rs` | modified | 60 | 18 | — |
+| `crates/ty_python_semantic/src/types.rs` | modified | 88 | 10 | — |
 | `crates/ty_python_semantic/src/types/attribute_write.rs` | modified | 2 | 2 | — |
 | `crates/ty_python_semantic/src/types/bool.rs` | modified | 4 | 1 | — |
-| `crates/ty_python_semantic/src/types/call/bind.rs` | modified | 34 | 20 | — |
+| `crates/ty_python_semantic/src/types/call/bind.rs` | modified | 33 | 20 | — |
 | `crates/ty_python_semantic/src/types/call/bind/constructor.rs` | modified | 1 | 1 | — |
-| `crates/ty_python_semantic/src/types/constraints.rs` | modified | 44 | 36 | — |
+| `crates/ty_python_semantic/src/types/class.rs` | modified | 15 | 5 | — |
+| `crates/ty_python_semantic/src/types/class/static_literal.rs` | modified | 19 | 10 | — |
+| `crates/ty_python_semantic/src/types/constraints.rs` | modified | 47 | 39 | — |
 | `crates/ty_python_semantic/src/types/cyclic.rs` | modified | 31 | 3 | — |
 | `crates/ty_python_semantic/src/types/equality/enums.rs` | modified | 1 | 1 | — |
 | `crates/ty_python_semantic/src/types/function.rs` | modified | 1 | 1 | — |
@@ -426,19 +445,20 @@ reveal_type(partial(f, value))  # revealed: partial[(first: tuple[Never], second
 | `crates/ty_python_semantic/src/types/infer/builder/type_form.rs` | modified | 1 | 1 | — |
 | `crates/ty_python_semantic/src/types/infer/builder/typed_dict.rs` | modified | 1 | 0 | — |
 | `crates/ty_python_semantic/src/types/infer/comparisons.rs` | modified | 1 | 1 | — |
-| `crates/ty_python_semantic/src/types/instance.rs` | modified | 40 | 4 | — |
+| `crates/ty_python_semantic/src/types/instance.rs` | modified | 32 | 4 | — |
 | `crates/ty_python_semantic/src/types/match_pattern.rs` | modified | 6 | 4 | — |
 | `crates/ty_python_semantic/src/types/narrow.rs` | modified | 27 | 20 | — |
 | `crates/ty_python_semantic/src/types/property_tests.rs` | modified | 4 | 4 | — |
 | `crates/ty_python_semantic/src/types/protocol_class.rs` | modified | 13 | 7 | — |
-| `crates/ty_python_semantic/src/types/relation.rs` | modified | 79 | 7 | — |
+| `crates/ty_python_semantic/src/types/relation.rs` | modified | 120 | 16 | — |
 | `crates/ty_python_semantic/src/types/set_theoretic.rs` | modified | 24 | 2 | — |
 | `crates/ty_python_semantic/src/types/set_theoretic/builder.rs` | modified | 4 | 4 | — |
 | `crates/ty_python_semantic/src/types/signatures.rs` | modified | 7 | 4 | — |
 | `crates/ty_python_semantic/src/types/tests.rs` | modified | 2 | 2 | — |
-| `crates/ty_python_semantic/src/types/tuple.rs` | modified | 91 | 17 | — |
-| `crates/ty_python_semantic/src/types/type_alias.rs` | modified | 47 | 6 | — |
+| `crates/ty_python_semantic/src/types/tuple.rs` | modified | 106 | 17 | — |
+| `crates/ty_python_semantic/src/types/type_alias.rs` | modified | 48 | 6 | — |
 | `crates/ty_python_semantic/src/types/typed_dict.rs` | modified | 33 | 15 | — |
+| `crates/ty_python_semantic/src/types/typevar.rs` | modified | 1 | 1 | — |
 
 ## Deterministic policy
 
