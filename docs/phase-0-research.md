@@ -1,5 +1,7 @@
 # Phase 0 research and assumptions
 
+> Historical note: this document records the initial research and implementation assumptions. The Phase 2 explainer described below was subsequently implemented; see `docs/phase-2-contract.md` and the current README for the shipped behavior.
+
 ## Name selection
 
 The requested candidate names were checked on GitHub, npm, and PyPI on 2026-08-17. `diffly` was rejected because it is already an active unrelated Polars DataFrame comparison package on both [GitHub](https://github.com/Quantco/diffly) and [PyPI](https://pypi.org/project/diffly/). `diffly-cli` was the first candidate in the requested order with no exact npm package and no exact PyPI project; GitHub search returned only unrelated repositories whose names merely contained the term. The repository is therefore named `diffly-cli`.
@@ -22,4 +24,4 @@ GitHub’s pull-request file-list endpoint returned HTTP 404 for the selected cl
 
 ## Phase 2 boundary
 
-The LLM literate-diff explainer is not implemented in this release. Phase 2 should consume deterministic JSON plus bounded diff context, redact secrets before model calls, validate structured output, and clearly label generated prose separately from facts returned by GitHub or the local analyzer.
+At the time of this Phase 0 note, the LLM literate-diff explainer was not implemented. It was subsequently added as the optional Phase 2 feature described in `docs/phase-2-contract.md`: it consumes deterministic JSON plus bounded diff context, redacts secrets before model calls, validates structured output, and labels generated prose separately from facts returned by GitHub or the local analyzer.

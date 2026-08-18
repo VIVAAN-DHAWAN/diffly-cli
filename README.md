@@ -66,7 +66,7 @@ For each changed file, the report lists the file status, additions and deletions
 
 ## Demo
 
-The committed demo section is captured from real terminal sessions running diffly-cli against public GitHub pull requests. It records the raw diff statistics beside diffly-cli’s actual one-page deterministic summary; the screenshots and GIF are rendered from those terminal transcripts rather than generated mockups.
+The committed demo section is captured from real terminal sessions running diffly-cli against public GitHub pull requests. It records the raw diff statistics beside diffly-cli’s actual one-page deterministic summary; the screenshots and GIF are rendered from those terminal transcripts rather than generated mockups. These figures are dated captures of public pull requests, whose metadata and checks may change after capture.
 
 ![diffly-cli animated demonstration](assets/diffly-cli-demo.gif)
 
@@ -95,7 +95,7 @@ Full generated report: [`demo/vscode-330848.md`](demo/vscode-330848.md).
 
 ### Demo B: kubernetes/kubernetes#141413
 
-Raw GitHub PR statistics: **41 files**, **+708 / -740 lines**, **1 commit**. The tool returned `QUARANTINE` because at least one changed production file lacked obvious test coverage; observed checks were successful.
+Raw GitHub PR statistics at capture time: **41 files**, **+708 / -740 lines**, **1 commit**. The tool returned `QUARANTINE` because at least one changed production file lacked obvious test coverage and the observed check state included a pending `tide` result.
 
 Full generated report: [`demo/kubernetes-141413.md`](demo/kubernetes-141413.md).
 
