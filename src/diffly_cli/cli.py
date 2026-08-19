@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from dataclasses import asdict
 import os
 import re
 import sys
@@ -13,6 +14,7 @@ from rich.markdown import Markdown
 
 from .astmap import analyze_files
 from .explainer import ExplanationResult, generate_explanation
+from .diffparse import files_from_unified_diff
 from .github import GitHubClient, GitHubError
 from .models import ChangedFile, PRMetadata, TriageResult
 from .triage import compute_flags, verdict_for
@@ -27,7 +29,7 @@ def parse_repo(value: str) -> tuple[str, str]:
     if value.startswith("github.com/"):
         value = value.split("github.com/", 1)[1]
     parts = value.split("/")
-    if len(parts) != 2 or not all(parts):
+    if len(parts) != 2 or not all(parts) or any(not re.fullmatch(r"[A-Za-z0-9_.-]+", part) for part in parts):
         raise argparse.ArgumentTypeError("repository must look like owner/repo")
     return parts[0], parts[1]
 
@@ -43,13 +45,18 @@ def summarize_checks(check_runs: dict[str, Any], status: dict[str, Any]) -> dict
             failed.append(name)
         elif conclusion not in {"success", "skipped", "neutral"}:
             pending.append(name)
+    combined_state = status.get("state")
+    if combined_state in {"failure", "error"}:
+        failed.append("combined commit status")
+    elif combined_state == "pending":
+        pending.append("combined commit status")
     statuses = status.get("statuses", [])
     for item in statuses:
         state = item.get("state")
         context = item.get("context", "unnamed status")
-        if state == "failure":
+        if state in {"failure", "error"}:
             failed.append(context)
-        elif state in {"pending", "error"}:
+        elif state == "pending":
             pending.append(context)
     if failed:
         state = "failure"
@@ -174,19 +181,32 @@ def render_markdown(result: TriageResult, explanation: ExplanationResult | None 
 def build_result(client: GitHubClient, owner: str, repo: str, number: int) -> TriageResult:
     metadata = client.pull_request(owner, repo, number)
     files = client.pull_request_files(owner, repo, number)
-    diff = client.pull_request_diff(owner, repo, number)
-    patch_by_path = {file.path: file.patch for file in files}
-    if diff and not any(file.patch for file in files):
-        for path in re.findall(r"^diff --git a/(.*?) b/", diff, flags=re.MULTILINE):
-            patch_by_path.setdefault(path, "")
+    try:
+        diff = client.pull_request_diff(owner, repo, number)
+    except GitHubError:
+        # GitHub refuses raw diffs above its size limit, while the paginated
+        # list-files endpoint can still provide useful metadata and patches.
+        diff = ""
+    if diff and any(not file.patch for file in files):
+        fallback_patches = {file.path: file.patch for file in files_from_unified_diff(diff)}
+        for file in files:
+            if not file.patch and file.path in fallback_patches:
+                file.patch = fallback_patches[file.path]
     files = analyze_files(files)
     check_runs = client.check_runs(owner, repo, metadata.head_sha)
     status = client.commit_status(owner, repo, metadata.head_sha)
     checks = summarize_checks(check_runs, status)
     try:
-        repo_paths = client.repository_tree(owner, repo, metadata.head_sha)
+        tree_result = client.repository_tree(owner, repo, metadata.head_sha)
+        repo_paths = tree_result.paths
+        tree_truncated = tree_result.truncated
     except GitHubError:
         repo_paths = []
+        tree_truncated = True
+    checks = dict(checks)
+    checks["repository_tree_complete"] = not tree_truncated
+    if tree_truncated:
+        checks["repository_tree_truncated"] = True
     flags = compute_flags(metadata, files, checks, repo_paths)
     verdict, reasoning = verdict_for(flags, checks)
     return TriageResult(metadata, files, flags, verdict, reasoning, checks, "GitHub REST API")
@@ -208,9 +228,9 @@ def run_pr(args: argparse.Namespace) -> int:
     output = render_markdown(result, explanation)
     if args.json:
         payload = {
-            "metadata": result.metadata.__dict__,
-            "files": [file.__dict__ for file in result.files],
-            "flags": [flag.__dict__ for flag in result.flags],
+            "metadata": asdict(result.metadata),
+            "files": [asdict(file) for file in result.files],
+            "flags": [asdict(flag) for flag in result.flags],
             "verdict": result.verdict,
             "reasoning": result.reasoning,
             "checks": result.checks,
