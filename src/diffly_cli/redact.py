@@ -33,9 +33,41 @@ _PATTERNS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         r"\1[REDACTED_BEARER_TOKEN]",
     ),
     (
+        "aws_secret_key",
+        re.compile(r"(?i)\bAWS_SECRET_ACCESS_KEY\s*[:=]\s*[\"']?[A-Za-z0-9/+=]{40}[\"']?"),
+        "[REDACTED_AWS_SECRET_KEY]",
+    ),
+    (
+        "slack_token",
+        re.compile(r"\bxox[baprs]-[0-9]{10,13}-[0-9]{10,13}[a-zA-Z0-9-]*\b"),
+        "[REDACTED_SLACK_TOKEN]",
+    ),
+    (
+        "google_api_key",
+        re.compile(r"\bAIza[0-9A-Za-z\\-_]{35}\b"),
+        "[REDACTED_GOOGLE_API_KEY]",
+    ),
+    (
+        "stripe_key",
+        re.compile(r"\b(?:sk|rk)_(?:test|live)_[0-9a-zA-Z]{24}\b"),
+        "[REDACTED_STRIPE_KEY]",
+    ),
+    (
+        "jwt_token",
+        re.compile(r"\beyJ[a-zA-Z0-9_-]+\.eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\b"),
+        "[REDACTED_JWT]",
+    ),
+    (
         "secret_assignment",
         re.compile(
-            r"(?i)(\b(?:api[_-]?key|access[_-]?key|secret|password|passwd|token|auth[_-]?token|client[_-]?secret)\b\s*[:=]\s*)([\"']?)[^\s,;\"'}]+(\2)"
+            r"(?i)(\b(?:api[_-]?key|access[_-]?key|secret|client[_-]?secret|password|passwd|token|auth[_-]?token)\b\s*[:=]\s*)([\"']?)[^\s,;\"'}]+(\2)"
+        ),
+        r"\1\2[REDACTED_SECRET]\3",
+    ),
+    (
+        "json_yaml_secret",
+        re.compile(
+            r"(?i)([\"']?\b(?:apiKey|accessKey|clientSecret|secret|password|token)\b[\"']?\s*:\s*)([\"']?)[^\s,;\"'}]+(\2)"
         ),
         r"\1\2[REDACTED_SECRET]\3",
     ),

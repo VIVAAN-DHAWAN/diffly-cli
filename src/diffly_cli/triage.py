@@ -21,8 +21,26 @@ DEPENDENCY_FILES = {
 
 
 def _matches(path: str, patterns: list[str]) -> bool:
+    # Use path segments rather than substring matching to avoid overfiring (F-05)
+    # Exclude docs, examples, fixtures, generated files, and tests by default if checking security
+    parts = path.lower().split("/")
+    filename = parts[-1]
+    
+    for pattern in patterns:
+        if fnmatch.fnmatch(path.lower(), pattern.lower()) or fnmatch.fnmatch(filename, pattern.lower()):
+            return True
+    return False
+
+def _is_production_file(path: str) -> bool:
     lowered = path.lower()
-    return any(fnmatch.fnmatch(lowered, pattern.lower()) or fnmatch.fnmatch(lowered.split("/")[-1], pattern.lower()) for pattern in patterns)
+    parts = lowered.split("/")
+    if any(p in {"docs", "examples", "fixtures", "generated", "tests", "test"} for p in parts):
+        return False
+    if _matches(path, TEST_PATTERNS):
+        return False
+    if lowered.endswith(".md") or lowered.endswith(".txt") or lowered.endswith(".json"):
+        return False
+    return True
 
 
 def _added_dependency_names(file: ChangedFile) -> list[str]:
@@ -44,11 +62,13 @@ def _test_files(files: list[ChangedFile]) -> list[str]:
 
 
 def _covered_by_test(file: ChangedFile, test_paths: list[str]) -> list[str]:
+    # Require exact module/test mapping (F-06)
     stem = file.path.rsplit("/", 1)[-1].rsplit(".", 1)[0].lower()
     matches = []
     for test_path in test_paths:
-        name = test_path.rsplit("/", 1)[-1].lower()
-        if stem in name or file.path.rsplit("/", 1)[0].lower() in test_path.lower():
+        name = test_path.rsplit("/", 1)[-1].rsplit(".", 1)[0].lower()
+        # Ensure it's not just a weak collision like foo -> test_foo_unrelated
+        if name == f"test_{stem}" or name == f"{stem}_test" or name == f"{stem}test" or name == f"test{stem}":
             matches.append(test_path)
     return matches
 
@@ -61,7 +81,7 @@ def compute_flags(metadata: PRMetadata, files: list[ChangedFile], checks: dict[s
     if not tree_complete:
         flags.append(RiskFlag("REPOSITORY_TREE_INCOMPLETE", "medium", "Repository file listing was unavailable or truncated; repository-wide test coverage could not be established.", ["repository tree incomplete"]))
 
-    auth_files = [file.path for file in files if _matches(file.path, AUTH_PATTERNS)]
+    auth_files = [file.path for file in files if _matches(file.path, AUTH_PATTERNS) and _is_production_file(file.path)]
     if auth_files:
         flags.append(RiskFlag("AUTH_OR_SECRET", "high", "Touches authentication, credentials, secrets, or security-sensitive files.", auth_files))
 

@@ -87,6 +87,17 @@ def language_for_path(path: str) -> str | None:
     return names.get(suffix)
 
 
+def old_source(patch: str) -> str:
+    lines = []
+    for line in patch.splitlines():
+        if line.startswith("+++") or line.startswith("---"):
+            continue
+        if line.startswith("-"):
+            lines.append(line[1:])
+        elif line.startswith(" "):
+            lines.append(line[1:])
+    return "\n".join(lines)
+
 def added_source(patch: str) -> str:
     lines = []
     for line in patch.splitlines():
@@ -108,6 +119,20 @@ def changed_line_numbers(file: ChangedFile) -> list[int]:
                 numbers.append(line_no)
                 line_no += 1
             elif line.startswith("-"):
+                continue
+            else:
+                line_no += 1
+    return numbers
+
+def deleted_line_numbers(file: ChangedFile) -> list[int]:
+    numbers: list[int] = []
+    for hunk in file.hunks:
+        line_no = hunk.old_start
+        for line in hunk.lines:
+            if line.startswith("-"):
+                numbers.append(line_no)
+                line_no += 1
+            elif line.startswith("+"):
                 continue
             else:
                 line_no += 1

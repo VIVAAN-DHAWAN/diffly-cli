@@ -43,7 +43,7 @@ def summarize_checks(check_runs: dict[str, Any], status: dict[str, Any]) -> dict
         name = run.get("name", "unnamed check")
         if conclusion in {"failure", "cancelled", "timed_out", "action_required", "startup_failure"}:
             failed.append(name)
-        elif conclusion not in {"success", "skipped", "neutral"}:
+        elif conclusion not in {"success"}: # neutral and skipped are no longer success
             pending.append(name)
     combined_state = status.get("state")
     if combined_state in {"failure", "error"}:
@@ -56,7 +56,7 @@ def summarize_checks(check_runs: dict[str, Any], status: dict[str, Any]) -> dict
         context = item.get("context", "unnamed status")
         if state in {"failure", "error"}:
             failed.append(context)
-        elif state == "pending":
+        elif state != "success":
             pending.append(context)
     if failed:
         state = "failure"
@@ -218,7 +218,19 @@ def run_pr(args: argparse.Namespace) -> int:
     try:
         result = build_result(client, owner, repo, args.number)
     except GitHubError as exc:
-        console.print(f"[red]Error:[/red] {exc}")
+        if args.json:
+            status = getattr(exc, "status_code", None)
+            error_payload = {
+                "error": {
+                    "type": "github_api_error",
+                    "message": str(exc),
+                    "status": status
+                }
+            }
+            print(json.dumps(error_payload, indent=2, sort_keys=True))
+            print(f"Error: {exc}", file=sys.stderr)
+        else:
+            console.print(f"[red]Error:[/red] {exc}")
         return 2
     explanation = generate_explanation(
         result,
@@ -254,6 +266,12 @@ def run_pr(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="diffly-cli", description="Deterministic triage for large GitHub pull requests")
+    try:
+        from importlib.metadata import version
+        __version__ = version("diffly-cli")
+    except Exception:
+        __version__ = "unknown"
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     subparsers = parser.add_subparsers(dest="command", required=True)
     pr = subparsers.add_parser("pr", help="Analyze one GitHub pull request")
     pr.add_argument("repository", type=parse_repo, metavar="<owner/repo>")

@@ -13,7 +13,9 @@ from .models import ChangedFile, PRMetadata
 
 
 class GitHubError(RuntimeError):
-    pass
+    def __init__(self, message: str, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
 
 
 @dataclass(frozen=True)
@@ -39,17 +41,37 @@ class GitHubClient:
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
         req = urllib.request.Request(url, headers=headers)
-        try:
-            with urllib.request.urlopen(req, timeout=30) as response:
-                payload = response.read().decode("utf-8")
-                if accept.endswith("diff"):
-                    return payload
-                return json.loads(payload)
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")
-            raise GitHubError(f"GitHub API {exc.code} for {path}: {detail[:400]}") from exc
-        except urllib.error.URLError as exc:
-            raise GitHubError(f"Could not reach GitHub: {exc.reason}") from exc
+        import time
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                with urllib.request.urlopen(req, timeout=30) as response:
+                    payload = response.read().decode("utf-8")
+                    if accept.endswith("diff"):
+                        return payload
+                    return json.loads(payload)
+            except urllib.error.HTTPError as exc:
+                if exc.code in (403, 429):
+                    reset = exc.headers.get("X-RateLimit-Reset")
+                    retry_after = exc.headers.get("Retry-After")
+                    if retry_after:
+                        wait = int(retry_after)
+                    elif reset:
+                        wait = max(0, int(reset) - int(time.time()))
+                    else:
+                        wait = 2 ** attempt
+                    
+                    if wait < 60 and attempt < max_retries - 1:
+                        time.sleep(wait)
+                        continue
+                    
+                    auth_msg = "" if self.token else " (Unauthenticated request. Provide a GITHUB_TOKEN to increase limit.)"
+                    raise GitHubError(f"GitHub API {exc.code} rate limit exceeded{auth_msg}. Retry after {wait}s.", status_code=exc.code) from exc
+                    
+                detail = exc.read().decode("utf-8", errors="replace")
+                raise GitHubError(f"GitHub API {exc.code} for {path}: {detail[:400]}", status_code=exc.code) from exc
+            except urllib.error.URLError as exc:
+                raise GitHubError(f"Could not reach GitHub: {exc.reason}") from exc
 
     def pull_request(self, owner: str, repo: str, number: int) -> PRMetadata:
         data = self.request(f"/repos/{owner}/{repo}/pulls/{number}")

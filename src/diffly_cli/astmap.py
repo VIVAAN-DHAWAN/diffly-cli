@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from .diffparse import added_source, changed_line_numbers, enrich_file, language_for_path
+from .diffparse import added_source, old_source, changed_line_numbers, deleted_line_numbers, enrich_file, language_for_path
 from .models import ChangedFile
 
 
@@ -49,18 +49,32 @@ def _tree_sitter_symbols(source_text: str, language: str) -> tuple[list[Symbol],
     tree = parser.parse(source)
     symbols: list[Symbol] = []
     calls: list[tuple[str, int]] = []
-    for node in _walk(tree.root_node):
+    
+    def walk_with_context(node, current_func=None):
+        my_func = current_func
         if node.type in FUNCTION_NODES:
+            my_func = _node_name(node, source)
             symbols.append(Symbol(
-                name=_node_name(node, source),
+                name=my_func,
                 start_line=node.start_point[0] + 1,
                 end_line=node.end_point[0] + 1,
                 kind=node.type,
             ))
-        if node.type in {"call", "call_expression", "invocation_expression", "call_expression"} and node.children:
+        if node.type in {"call", "call_expression", "invocation_expression"} and node.children:
+            # Handle member calls like service.target() by getting the terminal member name
             first = node.children[0]
-            name = source[first.start_byte : first.end_byte].decode("utf-8", errors="replace")
-            calls.append((name, node.start_point[0] + 1))
+            if first.type in {"member_expression", "field_expression", "property_identifier"}:
+                last_child = first.children[-1] if first.children else first
+                name = source[last_child.start_byte : last_child.end_byte].decode("utf-8", errors="replace")
+            else:
+                name = source[first.start_byte : first.end_byte].decode("utf-8", errors="replace")
+            # For caller, we record the enclosing function, not just the called name
+            if my_func:
+                calls.append((my_func, node.start_point[0] + 1))
+        for child in node.children:
+            walk_with_context(child, my_func)
+
+    walk_with_context(tree.root_node)
     return symbols, calls
 
 
@@ -95,23 +109,94 @@ def analyze_file(file: ChangedFile) -> ChangedFile:
     enrich_file(file)
     language = language_for_path(file.path)
     source_text = added_source(file.patch)
+    old_source_text = old_source(file.patch)
+    
     changed_lines = set(changed_line_numbers(file))
-    if not source_text.strip():
+    deleted_lines = set(deleted_line_numbers(file))
+    
+    if not source_text.strip() and not old_source_text.strip():
         return file
-    try:
-        symbols, calls = _tree_sitter_symbols(source_text, language) if language else ([], [])
-    except Exception:
-        symbols, calls = _regex_symbols(source_text, language or "unknown")
-    if not symbols:
+        
+    def get_symbols_and_calls(text):
+        if not text.strip():
+            return [], []
         try:
-            symbols, calls = _regex_symbols(source_text, language or "unknown")
+            s, c = _tree_sitter_symbols(text, language) if language else ([], [])
+            if not s:
+                s, c = _regex_symbols(text, language or "unknown")
+            return s, c
         except Exception:
-            symbols, calls = [], []
-    touched = [symbol.name for symbol in symbols if any(symbol.start_line <= line <= symbol.end_line for line in changed_lines)]
-    if not touched and changed_lines:
+            try:
+                return _regex_symbols(text, language or "unknown")
+            except Exception:
+                return [], []
+
+    # Calculate actual hunk offsets properly
+    # In tree-sitter we parse the whole added_source (which has no context lines, so lines don't match original file)
+    # The correct fix for F-02 is to map parsed lines back to original file lines, or parse per hunk.
+    # We'll parse the whole added_source but keep track of line mapping.
+    
+    def map_lines(text, hunk_lines_func):
+        mapping = {}
+        current_parsed = 1
+        for hunk in file.hunks:
+            if hunk_lines_func == changed_line_numbers:
+                orig_line = hunk.new_start
+            else:
+                orig_line = hunk.old_start
+                
+            for line in hunk.lines:
+                if line.startswith("+++") or line.startswith("---"):
+                    continue
+                if hunk_lines_func == changed_line_numbers and line.startswith("+"):
+                    mapping[current_parsed] = orig_line
+                    current_parsed += 1
+                    orig_line += 1
+                elif hunk_lines_func == deleted_line_numbers and line.startswith("-"):
+                    mapping[current_parsed] = orig_line
+                    current_parsed += 1
+                    orig_line += 1
+                elif line.startswith(" "):
+                    mapping[current_parsed] = orig_line
+                    current_parsed += 1
+                    orig_line += 1
+                elif hunk_lines_func == changed_line_numbers and line.startswith("-"):
+                    pass
+                elif hunk_lines_func == deleted_line_numbers and line.startswith("+"):
+                    pass
+        return mapping
+
+    added_mapping = map_lines(source_text, changed_line_numbers)
+    old_mapping = map_lines(old_source_text, deleted_line_numbers)
+    
+    added_symbols, added_calls = get_symbols_and_calls(source_text)
+    old_symbols, _ = get_symbols_and_calls(old_source_text)
+    
+    touched = []
+    
+    for symbol in added_symbols:
+        orig_start = added_mapping.get(symbol.start_line, symbol.start_line)
+        orig_end = added_mapping.get(symbol.end_line, symbol.end_line)
+        if any(orig_start <= line <= orig_end for line in changed_lines):
+            touched.append(symbol.name)
+            
+    for symbol in old_symbols:
+        orig_start = old_mapping.get(symbol.start_line, symbol.start_line)
+        orig_end = old_mapping.get(symbol.end_line, symbol.end_line)
+        if any(orig_start <= line <= orig_end for line in deleted_lines):
+            touched.append(symbol.name)
+            
+    if not touched and (changed_lines or deleted_lines):
         touched = ["<top-level changes>"]
+        
     touched_set = set(touched)
-    callers = [name for name, _ in calls if name in touched_set]
+    
+    callers = []
+    for name, line in added_calls:
+        orig_line = added_mapping.get(line, line)
+        if orig_line in changed_lines:
+            callers.append(name)
+            
     file.touched_symbols = sorted(dict.fromkeys(touched))
     file.callers = sorted(dict.fromkeys(callers))
     return file
