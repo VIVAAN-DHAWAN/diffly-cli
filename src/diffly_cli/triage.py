@@ -55,8 +55,11 @@ def _covered_by_test(file: ChangedFile, test_paths: list[str]) -> list[str]:
 
 def compute_flags(metadata: PRMetadata, files: list[ChangedFile], checks: dict[str, Any], repo_paths: list[str] | None = None) -> list[RiskFlag]:
     flags: list[RiskFlag] = []
-    test_paths = [path for path in (repo_paths or []) if _matches(path, TEST_PATTERNS)]
+    tree_complete = bool(checks.get("repository_tree_complete", repo_paths is not None))
+    test_paths = [path for path in (repo_paths or []) if _matches(path, TEST_PATTERNS)] if tree_complete else []
     changed_test_paths = _test_files(files)
+    if not tree_complete:
+        flags.append(RiskFlag("REPOSITORY_TREE_INCOMPLETE", "medium", "Repository file listing was unavailable or truncated; repository-wide test coverage could not be established.", ["repository tree incomplete"]))
 
     auth_files = [file.path for file in files if _matches(file.path, AUTH_PATTERNS)]
     if auth_files:
@@ -84,7 +87,7 @@ def compute_flags(metadata: PRMetadata, files: list[ChangedFile], checks: dict[s
         file.tests_found = coverage
         if not coverage:
             untested.append(file.path)
-    if untested:
+    if untested and tree_complete:
         flags.append(RiskFlag("NO_TEST_COVERAGE", "medium", "Changed production files have no obvious neighboring or repository test coverage.", untested[:50]))
 
     check_state = str(checks.get("state", "unknown"))

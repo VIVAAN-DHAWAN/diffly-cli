@@ -5,7 +5,7 @@ import os
 import urllib.error
 import urllib.parse
 import urllib.request
-from dataclasses import asdict
+from dataclasses import dataclass
 from typing import Any
 
 from .diffparse import files_from_unified_diff
@@ -14,6 +14,12 @@ from .models import ChangedFile, PRMetadata
 
 class GitHubError(RuntimeError):
     pass
+
+
+@dataclass(frozen=True)
+class RepositoryTreeResult:
+    paths: list[str]
+    truncated: bool
 
 
 class GitHubClient:
@@ -117,14 +123,57 @@ class GitHubClient:
         return values
 
     def check_runs(self, owner: str, repo: str, ref: str) -> dict[str, Any]:
-        return self.request(f"/repos/{owner}/{repo}/commits/{ref}/check-runs", params={"per_page": 100})
+        first: dict[str, Any] | None = None
+        values: list[dict[str, Any]] = []
+        page = 1
+        while True:
+            data = self.request(
+                f"/repos/{owner}/{repo}/commits/{ref}/check-runs",
+                params={"per_page": 100, "page": page},
+            )
+            if first is None:
+                first = dict(data)
+            batch = data.get("check_runs", [])
+            if not isinstance(batch, list):
+                raise GitHubError("GitHub check-runs response contained a non-list check_runs value")
+            values.extend(batch)
+            total = data.get("total_count")
+            if len(batch) < 100 or (isinstance(total, int) and len(values) >= total):
+                break
+            page += 1
+        result = first or {}
+        result["check_runs"] = values
+        result["total_count"] = len(values)
+        return result
 
     def commit_status(self, owner: str, repo: str, ref: str) -> dict[str, Any]:
-        return self.request(f"/repos/{owner}/{repo}/commits/{ref}/status")
+        first: dict[str, Any] | None = None
+        values: list[dict[str, Any]] = []
+        page = 1
+        while True:
+            data = self.request(
+                f"/repos/{owner}/{repo}/commits/{ref}/status",
+                params={"per_page": 100, "page": page},
+            )
+            if first is None:
+                first = dict(data)
+            batch = data.get("statuses", [])
+            if not isinstance(batch, list):
+                raise GitHubError("GitHub status response contained a non-list statuses value")
+            values.extend(batch)
+            total = data.get("total_count")
+            if len(batch) < 100 or (isinstance(total, int) and len(values) >= total):
+                break
+            page += 1
+        result = first or {}
+        result["statuses"] = values
+        result["total_count"] = len(values)
+        return result
 
-    def repository_tree(self, owner: str, repo: str, ref: str) -> list[str]:
+    def repository_tree(self, owner: str, repo: str, ref: str) -> RepositoryTreeResult:
         data = self.request(f"/repos/{owner}/{repo}/git/trees/{urllib.parse.quote(ref, safe='')}", params={"recursive": 1})
-        return [item.get("path", "") for item in data.get("tree", []) if item.get("type") == "blob"]
+        paths = [item.get("path", "") for item in data.get("tree", []) if item.get("type") == "blob"]
+        return RepositoryTreeResult(paths=paths, truncated=bool(data.get("truncated", False)))
 
     @staticmethod
     def to_json(value: Any) -> str:

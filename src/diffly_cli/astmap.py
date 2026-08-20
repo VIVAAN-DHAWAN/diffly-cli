@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from .diffparse import added_source, changed_line_numbers, language_for_path
+from .diffparse import added_source, changed_line_numbers, enrich_file, language_for_path
 from .models import ChangedFile
 
 
@@ -92,6 +92,7 @@ def _regex_symbols(source_text: str, language: str) -> tuple[list[Symbol], list[
 
 
 def analyze_file(file: ChangedFile) -> ChangedFile:
+    enrich_file(file)
     language = language_for_path(file.path)
     source_text = added_source(file.patch)
     changed_lines = set(changed_line_numbers(file))
