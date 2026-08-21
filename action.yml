@@ -26,6 +26,8 @@ runs:
         if [[ -n "${DIFFLY_LLM_API_KEY:-}" || -n "${OPENAI_API_KEY:-}" ]]; then
           explain_args+=(--explain)
         fi
+        # Give other checks a moment to register their pending status
+        sleep 10
         diffly-cli pr "$GITHUB_REPOSITORY" "${{ github.event.pull_request.number }}" \
           --token "$GITHUB_TOKEN" --json "${explain_args[@]}" > "$RUNNER_TEMP/diffly-result.json"
         python "$GITHUB_ACTION_PATH/action/format_comment.py" "$RUNNER_TEMP/diffly-result.json" > "$RUNNER_TEMP/diffly-comment.md"

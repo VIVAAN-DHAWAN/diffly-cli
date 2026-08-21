@@ -45,3 +45,10 @@ def test_all_clear_ships():
     verdict, _ = verdict_for(flags, {"state": "success"})
     assert not flags
     assert verdict == "SHIP"
+
+def test_pending_checks_quarantine():
+    file = ChangedFile("tests/test_math.py", "modified", 1, 0, 1, "+def test_math():\n")
+    flags = compute_flags(metadata(), [file], {"state": "pending", "count": 1}, ["tests/test_math.py"])
+    verdict, _ = verdict_for(flags, {"state": "pending"})
+    assert verdict == "QUARANTINE"
+    assert any(f.code == "CHECKS_PENDING" for f in flags)

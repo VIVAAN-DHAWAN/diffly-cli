@@ -40,6 +40,8 @@ def _is_production_file(path: str) -> bool:
         return False
     if lowered.endswith(".md") or lowered.endswith(".txt") or lowered.endswith(".json"):
         return False
+    if lowered == "install.sh":
+        return False
     return True
 
 
@@ -113,8 +115,10 @@ def compute_flags(metadata: PRMetadata, files: list[ChangedFile], checks: dict[s
     check_state = str(checks.get("state", "unknown"))
     if check_state == "failure":
         flags.append(RiskFlag("CHECKS_FAILED", "critical", "One or more required status checks failed.", list(checks.get("failed", []))))
+    elif check_state == "pending":
+        flags.append(RiskFlag("CHECKS_PENDING", "low", "Required status checks are still pending.", [check_state]))
     elif check_state != "success":
-        flags.append(RiskFlag("CHECKS_UNKNOWN", "medium", "Required status checks are missing, pending, or unavailable.", [check_state]))
+        flags.append(RiskFlag("CHECKS_UNKNOWN", "medium", "Required status checks are missing or unavailable.", [check_state]))
 
     return flags
 
@@ -136,6 +140,8 @@ def verdict_for(flags: list[RiskFlag], checks: dict[str, Any]) -> tuple[str, lis
         reasoning.append("QUARANTINE because at least one changed production file lacks obvious test coverage.")
     if "CHECKS_UNKNOWN" in codes:
         reasoning.append("QUARANTINE because the affected pull request does not have a confirmed passing check result.")
+    if "CHECKS_PENDING" in codes:
+        reasoning.append("QUARANTINE because the affected pull request has pending checks.")
     if reasoning:
         return "QUARANTINE", reasoning
     reasoning.append("SHIP because no deterministic risk rule fired and all observed checks passed.")

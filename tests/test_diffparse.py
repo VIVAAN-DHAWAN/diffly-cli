@@ -52,6 +52,10 @@ def test_policy_precision():
     file = ChangedFile("src/foo.py", "modified", 1, 0, 1, "")
     assert _covered_by_test(file, ["tests/test_foo_unrelated.py"]) == []
     assert _covered_by_test(file, ["tests/test_foo.py"]) == ["tests/test_foo.py"]
+    
+    # Check that test_cli.py covers cli.py
+    file_cli = ChangedFile("src/diffly_cli/cli.py", "modified", 1, 0, 1, "")
+    assert _covered_by_test(file_cli, ["tests/test_cli.py"]) == ["tests/test_cli.py"]
 
 def test_redaction_expansion():
     text = "aws AWS_SECRET_ACCESS_KEY='AKIAIOSFODNN7EXAMPLE12345678901234567890'"
