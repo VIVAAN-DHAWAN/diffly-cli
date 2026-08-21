@@ -12,6 +12,12 @@ MARKER = "<!-- diffly-cli:pr-triage -->"
 API_VERSION = "2022-11-28"
 
 
+class GitHubApiError(RuntimeError):
+    def __init__(self, code: int, detail: str) -> None:
+        super().__init__(f"GitHub API {code}: {detail}")
+        self.code = code
+
+
 def request(url: str, token: str, method: str = "GET", payload: dict | None = None):
     body = json.dumps(payload).encode() if payload is not None else None
     headers = {
@@ -27,10 +33,27 @@ def request(url: str, token: str, method: str = "GET", payload: dict | None = No
             raw = response.read().decode()
             return json.loads(raw) if raw else {}
     except urllib.error.HTTPError as exc:
-        if exc.code == 404 and method == "GET":
-            return []
         detail = exc.read().decode(errors="replace")
-        raise SystemExit(f"GitHub API {exc.code}: {detail[:500]}") from exc
+        raise GitHubApiError(exc.code, detail[:500]) from exc
+
+
+def existing_comments(base: str, token: str) -> list:
+    """List prior PR comments; a 404 means none are readable yet."""
+    comments = []
+    page = 1
+    while True:
+        try:
+            batch = request(f"{base}?per_page=100&page={page}", token)
+        except GitHubApiError as exc:
+            if exc.code == 404 and page == 1:
+                return []
+            raise
+        if not isinstance(batch, list):
+            raise SystemExit(f"GitHub returned unexpected comment listing: {type(batch).__name__}")
+        comments.extend(batch)
+        if len(batch) < 100:
+            return comments
+        page += 1
 
 
 def main() -> int:
@@ -43,15 +66,7 @@ def main() -> int:
     with open(comment_file, encoding="utf-8") as handle:
         body = handle.read()
     base = f"https://api.github.com/repos/{repository}/issues/{number}/comments"
-    page = 1
-    existing = []
-    while True:
-        batch = request(f"{base}?per_page=100&page={page}", token)
-        existing.extend(batch)
-        if len(batch) < 100:
-            break
-        page += 1
-    match = next((item for item in existing if MARKER in (item.get("body") or "")), None)
+    match = next((item for item in existing_comments(base, token) if MARKER in (item.get("body") or "")), None)
     try:
         if match:
             request(f"{base}/{match['id']}", token, "PATCH", {"body": body})
@@ -59,9 +74,9 @@ def main() -> int:
         else:
             created = request(base, token, "POST", {"body": body})
             print(f"Created Diffly comment {created.get('id', 'unknown')}")
-    except SystemExit as exc:
-        if "GitHub API 404" in str(exc):
-            print(f"Warning: Diffly could not publish its PR comment (GitHub returned 404; check pull-request write permissions).")
+    except GitHubApiError as exc:
+        if exc.code == 404:
+            print("Warning: Diffly could not publish its PR comment (GitHub returned 404; check pull-request write permissions).")
         else:
             raise
     return 0
