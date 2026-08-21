@@ -26,6 +26,7 @@ dependencies = [
 ]
 
 [project.scripts]
+diffly = "diffly_cli.cli:main"
 diffly-cli = "diffly_cli.cli:main"
 
 [project.optional-dependencies]

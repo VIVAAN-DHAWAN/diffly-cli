@@ -6,12 +6,16 @@ from dataclasses import asdict
 import os
 import re
 import sys
-from collections import Counter
+import termios
+import tty
 from typing import Any
 
 from rich.console import Console
 from rich.markdown import Markdown
+from rich.panel import Panel
+from rich.table import Table
 
+from . import __version__
 from .astmap import analyze_files
 from .explainer import ExplanationResult, generate_explanation
 from .diffparse import files_from_unified_diff
@@ -20,6 +24,7 @@ from .models import ChangedFile, PRMetadata, TriageResult
 from .triage import compute_flags, verdict_for
 
 console = Console()
+VERDICT_STYLES = {"SHIP": "bold green", "QUARANTINE": "bold yellow", "BLOCK": "bold red"}
 
 
 def positive_pr_number(value: str) -> int:
@@ -189,6 +194,74 @@ def render_markdown(result: TriageResult, explanation: ExplanationResult | None 
     return "\n".join(lines) + "\n"
 
 
+def _section_lines(result: TriageResult, section: str) -> list[str]:
+    """Build a compact Rich-friendly section for the interactive view."""
+    if section == "verdict":
+        style = VERDICT_STYLES.get(result.verdict, "bold")
+        return [f"[{style}]{result.verdict}[/]", *result.reasoning]
+    if section == "checks":
+        checks = result.checks
+        state = checks.get("state", "unknown").upper()
+        return [f"State: {state}", f"Observed: {checks.get('count', 0)}", *[f"Failed: {x}" for x in checks.get("failed", [])], *[f"Pending: {x}" for x in checks.get("pending", [])]]
+    if section == "risks":
+        if not result.flags:
+            return ["No deterministic risk flags fired."]
+        return [f"{flag.code} ({flag.severity}): {flag.message}" for flag in result.flags]
+    return [f"{item.path}  +{item.additions}/-{item.deletions}" for item in result.files[:80]] or ["No changed files returned."]
+
+
+def interactive_view(result: TriageResult) -> None:
+    """Let a reviewer toggle report sections with up/down arrows and space."""
+    if not sys.stdin.isatty() or not sys.stdout.isatty():
+        console.print("[yellow]Interactive mode needs a terminal; showing the standard report instead.[/]")
+        console.print(Markdown(render_markdown(result)))
+        return
+    labels = [("verdict", "Verdict"), ("checks", "Checks"), ("risks", "Risk flags"), ("files", "Changed files")]
+    enabled = {key: True for key, _ in labels}
+    cursor = 0
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    try:
+        tty.setcbreak(fd)
+        while True:
+            console.clear()
+            console.print(Panel.fit("[bold cyan]diffly interactive review[/]  [dim]↑/↓ move · space toggle · enter apply · q quit[/]", border_style="cyan"))
+            menu = Table(show_header=False, box=None, padding=(0, 1))
+            menu.add_column("", width=3)
+            menu.add_column("Section")
+            for index, (key, label) in enumerate(labels):
+                marker = "[cyan]›[/]" if index == cursor else " "
+                state = "[green]on[/]" if enabled[key] else "[dim]off[/]"
+                menu.add_row(marker, f"{label:<18} {state}")
+            console.print(menu)
+            console.print("\n[dim]Toggle sections to keep the review focused.[/]")
+            key = sys.stdin.read(1)
+            if key in {"q", "Q"}:
+                return
+            if key in {"\r", "\n"}:
+                break
+            if key == " ":
+                selected = labels[cursor][0]
+                enabled[selected] = not enabled[selected]
+            elif key == "\x1b":
+                sequence = sys.stdin.read(2)
+                if sequence == "[A":
+                    cursor = (cursor - 1) % len(labels)
+                elif sequence == "[B":
+                    cursor = (cursor + 1) % len(labels)
+        console.clear()
+        result_table = Table(title=f"{result.metadata.owner}/{result.metadata.repo}#{result.metadata.number}", box=None)
+        result_table.add_column("Section", style="cyan")
+        result_table.add_column("Details")
+        for key, label in labels:
+            if enabled[key]:
+                details = "\n".join(_section_lines(result, key))
+                result_table.add_row(label, details)
+        console.print(result_table)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+
 def build_result(client: GitHubClient, owner: str, repo: str, number: int) -> TriageResult:
     metadata = client.pull_request(owner, repo, number)
     files = client.pull_request_files(owner, repo, number)
@@ -229,13 +302,16 @@ def run_pr(args: argparse.Namespace) -> int:
     try:
         result = build_result(client, owner, repo, args.number)
     except GitHubError as exc:
-        console.print(f"[red]Error:[/red] {exc}")
+        console.print(Panel.fit(f"[bold red]Unable to inspect pull request[/]\n{exc}\n\n[dim]Check GITHUB_TOKEN, repository access, and network connectivity. Run `diffly doctor` for diagnostics.[/]", border_style="red"))
         return 2
     explanation = generate_explanation(
         result,
         model=args.llm_model,
         base_url=args.llm_base_url,
     ) if args.explain else None
+    if args.interactive and not args.json and not args.output:
+        interactive_view(result)
+        return 0
     output = render_markdown(result, explanation)
     if args.json:
         payload = {
@@ -263,8 +339,31 @@ def run_pr(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_doctor(_: argparse.Namespace) -> int:
+    """Print actionable local diagnostics without making a GitHub request."""
+    import shutil
+    table = Table(title="diffly doctor", box=None)
+    table.add_column("Check", style="cyan")
+    table.add_column("Status")
+    checks = [("Python", f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"), ("GitHub token", "configured" if os.environ.get("GITHUB_TOKEN") else "not set (public API only)"), ("Terminal", "interactive" if sys.stdin.isatty() else "non-interactive"), ("diffly executable", shutil.which("diffly") or "not on PATH")]
+    for name, value in checks:
+        table.add_row(name, value)
+    console.print(table)
+    return 0
+
+
+def run_help(args: argparse.Namespace) -> int:
+    args.root_parser.print_help()
+    return 0
+
+
+def run_version(_: argparse.Namespace) -> int:
+    console.print(f"[bold cyan]diffly[/] {__version__}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="diffly-cli", description="Deterministic triage for large GitHub pull requests")
+    parser = argparse.ArgumentParser(prog="diffly", description="Deterministic triage for large GitHub pull requests", formatter_class=argparse.RawDescriptionHelpFormatter, epilog="Examples:\n  diffly pr pallets/urllib3 3456\n  diffly pr pallets/urllib3 3456 --interactive\n  diffly doctor")
     subparsers = parser.add_subparsers(dest="command", required=True)
     pr = subparsers.add_parser("pr", help="Analyze one GitHub pull request")
     pr.add_argument("repository", type=parse_repo, metavar="<owner/repo>")
@@ -275,7 +374,14 @@ def build_parser() -> argparse.ArgumentParser:
     pr.add_argument("--explain", action="store_true", help="Add an optional LLM-generated literate-diff explanation")
     pr.add_argument("--llm-model", default=None, help="Override DIFFLY_LLM_MODEL for --explain")
     pr.add_argument("--llm-base-url", default=None, help="Override DIFFLY_LLM_BASE_URL for --explain")
+    pr.add_argument("--interactive", action="store_true", help="Open a keyboard-driven report view (arrows, space, enter)")
     pr.set_defaults(func=run_pr)
+    doctor = subparsers.add_parser("doctor", help="Diagnose local installation and environment")
+    doctor.set_defaults(func=run_doctor)
+    version = subparsers.add_parser("version", help="Print the installed diffly version")
+    version.set_defaults(func=run_version)
+    help_command = subparsers.add_parser("help", help="Show commands, options, and examples")
+    help_command.set_defaults(func=run_help, root_parser=parser)
     return parser
 
 
