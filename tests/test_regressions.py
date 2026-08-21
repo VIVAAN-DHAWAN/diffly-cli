@@ -4,7 +4,7 @@ from dataclasses import asdict
 
 import pytest
 
-from diffly_cli.cli import build_result, parse_repo, summarize_checks
+from diffly_cli.cli import build_parser, build_result, parse_repo, summarize_checks
 from diffly_cli.github import GitHubClient, GitHubError, RepositoryTreeResult
 from diffly_cli.models import ChangedFile, PRMetadata
 
@@ -108,3 +108,11 @@ def test_repository_parser_rejects_path_and_query_injection_values():
     for value in ("acme/demo?x=1", "acme/demo#fragment", "acme/demo%2Fother", "acme/demo/extra"):
         with pytest.raises(argparse.ArgumentTypeError):
             parse_repo(value)
+
+
+def test_cli_rejects_non_positive_pull_request_numbers():
+    parser = build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["pr", "acme/demo", "0"])
+    with pytest.raises(SystemExit):
+        parser.parse_args(["pr", "acme/demo", "-1"])

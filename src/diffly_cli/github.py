@@ -8,6 +8,7 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any
 
+from . import __version__
 from .diffparse import files_from_unified_diff
 from .models import ChangedFile, PRMetadata
 
@@ -34,7 +35,7 @@ class GitHubClient:
         headers = {
             "Accept": accept,
             "X-GitHub-Api-Version": "2022-11-28",
-            "User-Agent": "diffly-cli/0.1.0",
+            "User-Agent": f"diffly-cli/{__version__}",
         }
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"

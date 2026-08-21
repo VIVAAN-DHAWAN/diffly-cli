@@ -22,6 +22,17 @@ from .triage import compute_flags, verdict_for
 console = Console()
 
 
+def positive_pr_number(value: str) -> int:
+    """Parse a GitHub pull-request number, rejecting impossible values early."""
+    try:
+        number = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("PR number must be an integer") from exc
+    if number < 1:
+        raise argparse.ArgumentTypeError("PR number must be greater than zero")
+    return number
+
+
 def parse_repo(value: str) -> tuple[str, str]:
     value = value.rstrip("/")
     if value.startswith("https://github.com/"):
@@ -257,7 +268,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     pr = subparsers.add_parser("pr", help="Analyze one GitHub pull request")
     pr.add_argument("repository", type=parse_repo, metavar="<owner/repo>")
-    pr.add_argument("number", type=int, metavar="<pr-number>")
+    pr.add_argument("number", type=positive_pr_number, metavar="<pr-number>")
     pr.add_argument("--token", default=None, help="GitHub token; defaults to GITHUB_TOKEN")
     pr.add_argument("--output", help="Write terminal Markdown to a file")
     pr.add_argument("--json", action="store_true", help="Emit structured JSON instead of Markdown")

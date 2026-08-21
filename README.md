@@ -1,8 +1,21 @@
 # diffly-cli
 
+[![CI](https://github.com/VIVAAN-DHAWAN/diffly-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/VIVAAN-DHAWAN/diffly-cli/actions/workflows/ci.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/VIVAAN-DHAWAN/diffly-cli)](https://github.com/VIVAAN-DHAWAN/diffly-cli/releases/latest)
+
 **diffly-cli** is a deterministic, terminal-first triage tool for large GitHub pull requests. It fetches the pull request metadata, changed files, unified diff, commit metadata, status checks, and repository tree; parses supported source changes with Tree-sitter; identifies a conservative blast-radius map; applies fixed risk rules; and emits a one-page Markdown review with a `SHIP`, `QUARANTINE`, or `BLOCK` verdict.
 
 This release includes **Phase 1 deterministic triage** plus the optional **Phase 2 literate-diff explainer**. Deterministic facts and verdicts remain authoritative; generated prose is clearly labeled and cannot change `SHIP`, `QUARANTINE`, or `BLOCK`.
+
+## At a glance
+
+- **Deterministic by default:** the same pull-request data produces the same policy verdict.
+- **Useful on large diffs:** condenses files, symbols, checks, tests, and risk surfaces into one report.
+- **CI ready:** run it as a CLI, consume stable JSON, or add the bundled GitHub Action.
+- **LLM optional:** generated explanation is isolated from the authoritative verdict and fails closed to deterministic output.
+- **No GitHub CLI dependency:** it talks directly to the GitHub REST API.
 
 ## Why it exists
 
@@ -68,6 +81,8 @@ diffly-cli pr pallets/urllib3 3456 --json
 ```
 
 The command prints clean terminal Markdown by default. `--json` is provided for CI integration and `--output` saves the Markdown report to a file.
+
+Run `diffly-cli pr --help` for the complete option reference. Pull-request numbers must be positive integers. For automation, prefer `--json`; operational errors exit with status `2` and successful triage exits with status `0` regardless of the verdict, so callers should inspect the `verdict` field when enforcing policy.
 
 ## Deterministic policy
 
@@ -137,7 +152,35 @@ The Phase 2 explainer is optional and requires an OpenAI-compatible API key. It 
 
 ## Roadmap
 
-Future work includes repository-wide symbol resolution, stronger test-to-production coverage mapping, configurable organization policies, and optional provider-specific adapters. The Phase 2 contract and safety boundary are documented in [`docs/phase-2-contract.md`](docs/phase-2-contract.md).
+The highest-value next steps are:
+
+- repository-wide symbol resolution and import-aware blast-radius analysis;
+- configurable policy files for organization-specific risk rules and verdict thresholds;
+- GitHub annotations and check-run output in addition to the existing PR comment;
+- baseline mode that reports only risks introduced relative to the target branch;
+- stronger test-to-production mapping using coverage artifacts when a repository publishes them;
+- SARIF output for code-scanning integrations and durable machine-readable findings.
+
+The Phase 2 contract and safety boundary are documented in [`docs/phase-2-contract.md`](docs/phase-2-contract.md). Broader benchmark methodology and results live in [`docs/benchmarks.md`](docs/benchmarks.md).
+
+## Development
+
+```bash
+git clone https://github.com/VIVAAN-DHAWAN/diffly-cli.git
+cd diffly-cli
+python -m venv .venv
+. .venv/bin/activate
+python -m pip install -e '.[dev]'
+pytest -q
+```
+
+Keep changes focused and include regression tests for behavior changes. The CI matrix runs the suite on Python 3.10 through 3.13.
+
+## Security and privacy
+
+Diffly sends GitHub API requests only for the repository and pull request you ask it to inspect. The deterministic mode does not send code to an LLM. With `--explain`, bounded and redacted context is sent to the configured OpenAI-compatible endpoint; review [`docs/phase-2-contract.md`](docs/phase-2-contract.md) before enabling it for sensitive repositories. Never pass tokens on a shared command line when an environment variable or CI secret is available.
+
+Report security issues privately through [GitHub's security advisory form](https://github.com/VIVAAN-DHAWAN/diffly-cli/security/advisories/new), not a public issue.
 
 ## License
 
