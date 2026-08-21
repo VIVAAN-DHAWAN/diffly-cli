@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="diffly logo" width="140">
+</p>
+
 # ⚡ diffly
 
 <p align="center">
