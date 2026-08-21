@@ -13,6 +13,7 @@ from typing import Any
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
+from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
 from . import __version__
@@ -362,6 +363,54 @@ def run_version(_: argparse.Namespace) -> int:
     return 0
 
 
+def run_wizard(parser: argparse.ArgumentParser) -> int:
+    """Run the zero-argument first-use flow for human reviewers."""
+    console.clear()
+    console.print(Panel.fit(
+        "[bold cyan]diffly[/]  [dim]Pull request intelligence, without the noise[/]\n"
+        "[dim]Enter a repository and PR, then use the focused review screen.[/]",
+        border_style="cyan",
+        padding=(1, 2),
+    ))
+    console.print("[dim]Tip: scripted usage remains available with `diffly pr OWNER/REPO NUMBER --json`.\n[/]")
+    while True:
+        raw_repository = Prompt.ask("[cyan]Repository[/]", default=os.environ.get("DIFFLY_REPOSITORY", ""))
+        try:
+            repository = parse_repo(raw_repository)
+            break
+        except argparse.ArgumentTypeError as exc:
+            console.print(f"[red]Invalid repository:[/] {exc}")
+    while True:
+        raw_number = Prompt.ask("[cyan]Pull request number[/]")
+        try:
+            number = positive_pr_number(raw_number)
+            break
+        except argparse.ArgumentTypeError as exc:
+            console.print(f"[red]Invalid PR number:[/] {exc}")
+    token = os.environ.get("GITHUB_TOKEN")
+    if not token:
+        console.print("[dim]No GITHUB_TOKEN found. Public repositories still work with lower API limits.[/]")
+    explain = Confirm.ask("[cyan]Add an optional generated explanation?[/]", default=False)
+    owner, repo = repository
+    console.print(Panel.fit(
+        f"[bold]Ready[/]  {owner}/{repo}#{number}\n"
+        f"[dim]Mode: {'deterministic + explanation' if explain else 'deterministic'} · output: interactive[/]",
+        border_style="green",
+    ))
+    args = argparse.Namespace(
+        repository=repository,
+        number=number,
+        token=token,
+        output=None,
+        json=False,
+        explain=explain,
+        llm_model=None,
+        llm_base_url=None,
+        interactive=True,
+    )
+    return run_pr(args)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="diffly", description="Deterministic triage for large GitHub pull requests", formatter_class=argparse.RawDescriptionHelpFormatter, epilog="Examples:\n  diffly pr pallets/urllib3 3456\n  diffly pr pallets/urllib3 3456 --interactive\n  diffly doctor")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -387,7 +436,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
-    args = parser.parse_args(argv)
+    effective_argv = sys.argv[1:] if argv is None else argv
+    if not effective_argv:
+        return run_wizard(parser)
+    args = parser.parse_args(effective_argv)
     return args.func(args)
 
 
