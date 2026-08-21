@@ -116,3 +116,12 @@ def test_cli_rejects_non_positive_pull_request_numbers():
         parser.parse_args(["pr", "acme/demo", "0"])
     with pytest.raises(SystemExit):
         parser.parse_args(["pr", "acme/demo", "-1"])
+
+
+def test_cli_exposes_interactive_and_diagnostics_commands():
+    parser = build_parser()
+    args = parser.parse_args(["pr", "acme/demo", "1", "--interactive"])
+    assert args.interactive is True
+    assert parser.parse_args(["doctor"]).command == "doctor"
+    assert parser.parse_args(["version"]).command == "version"
+    assert parser.parse_args(["help"]).command == "help"
