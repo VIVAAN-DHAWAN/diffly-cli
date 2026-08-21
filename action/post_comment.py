@@ -27,6 +27,8 @@ def request(url: str, token: str, method: str = "GET", payload: dict | None = No
             raw = response.read().decode()
             return json.loads(raw) if raw else {}
     except urllib.error.HTTPError as exc:
+        if exc.code == 404 and method == "GET":
+            return []
         detail = exc.read().decode(errors="replace")
         raise SystemExit(f"GitHub API {exc.code}: {detail[:500]}") from exc
 
@@ -50,12 +52,18 @@ def main() -> int:
             break
         page += 1
     match = next((item for item in existing if MARKER in (item.get("body") or "")), None)
-    if match:
-        request(f"{base}/{match['id']}", token, "PATCH", {"body": body})
-        print(f"Updated Diffly comment {match['id']}")
-    else:
-        created = request(base, token, "POST", {"body": body})
-        print(f"Created Diffly comment {created.get('id', 'unknown')}")
+    try:
+        if match:
+            request(f"{base}/{match['id']}", token, "PATCH", {"body": body})
+            print(f"Updated Diffly comment {match['id']}")
+        else:
+            created = request(base, token, "POST", {"body": body})
+            print(f"Created Diffly comment {created.get('id', 'unknown')}")
+    except SystemExit as exc:
+        if "GitHub API 404" in str(exc):
+            print(f"Warning: Diffly could not publish its PR comment (GitHub returned 404; check pull-request write permissions).")
+        else:
+            raise
     return 0
 
 

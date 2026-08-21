@@ -5,9 +5,9 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/VIVAAN-DHAWAN/diffly-cli)](https://github.com/VIVAAN-DHAWAN/diffly-cli/releases/latest)
 
-**diffly** is a deterministic, terminal-first triage tool for large GitHub pull requests. It fetches the pull request metadata, changed files, unified diff, commit metadata, status checks, and repository tree; parses supported source changes with Tree-sitter; identifies a conservative blast-radius map; applies fixed risk rules; and emits a one-page Markdown review with a `SHIP`, `QUARANTINE`, or `BLOCK` verdict.
+**diffly** is a deterministic, terminal-first triage tool for large GitHub pull requests. It fetches the pull request metadata, changed files, unified diff, commit metadata, status checks, and repository tree; parses supported source changes with Tree-sitter; identifies a conservative blast-radius map; applies fixed risk rules; and emits a one-page Markdown review with a `PASS`, `QUARANTINE`, or `BLOCK` verdict.
 
-This release includes **Phase 1 deterministic triage** plus the optional **Phase 2 literate-diff explainer**. Deterministic facts and verdicts remain authoritative; generated prose is clearly labeled and cannot change `SHIP`, `QUARANTINE`, or `BLOCK`.
+This release includes **Phase 1 deterministic triage** plus the optional **Phase 2 literate-diff explainer**. Deterministic facts and verdicts remain authoritative; generated prose is clearly labeled and cannot change `PASS`, `QUARANTINE`, or `BLOCK`.
 
 ## At a glance
 
@@ -106,7 +106,7 @@ Run `diffly --help` or `diffly pr --help` for the complete option reference. `--
 | --- | --- |
 | **BLOCK** | A required check failed, or the pull request touches authentication, credentials, secrets, or security-sensitive files. |
 | **QUARANTINE** | The pull request changes database schema or migrations, adds or changes dependencies, lacks obvious test coverage for a production file, or has unavailable/pending checks. |
-| **SHIP** | No deterministic rule fired and observed checks passed. |
+| **PASS** | No deterministic rule fired and observed checks passed. `SHIP` remains accepted as a legacy name in older integrations. |
 
 The policy is deliberately conservative. A verdict is a review gate, not a claim that a pull request is correct or safe in every context.
 

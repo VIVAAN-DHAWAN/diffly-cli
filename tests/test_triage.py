@@ -44,4 +44,12 @@ def test_all_clear_ships():
     flags = compute_flags(metadata(), [file], {"state": "success", "count": 1}, ["tests/test_math.py"])
     verdict, _ = verdict_for(flags, {"state": "success"})
     assert not flags
-    assert verdict == "SHIP"
+    assert verdict == "PASS"
+
+
+def test_pending_checks_quarantine():
+    flags = compute_flags(metadata(), [], {"state": "pending", "count": 1}, [])
+    verdict, reasoning = verdict_for(flags, {"state": "pending"})
+    assert "CHECKS_PENDING" in {flag.code for flag in flags}
+    assert verdict == "QUARANTINE"
+    assert any("still running" in item for item in reasoning)
