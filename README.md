@@ -1,47 +1,72 @@
-# diffly
+# ⚡ diffly
 
-[![CI](https://github.com/VIVAAN-DHAWAN/diffly-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/VIVAAN-DHAWAN/diffly-cli/actions/workflows/ci.yml)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB.svg)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Latest release](https://img.shields.io/github/v/release/VIVAAN-DHAWAN/diffly-cli)](https://github.com/VIVAAN-DHAWAN/diffly-cli/releases/latest)
+<p align="center">
+  <b>Your PR is 4,000 lines long. Nobody wants to review it.</b><br>
+  diffly reads it for you — files, symbols, checks, tests, blast radius —<br>
+  and hands you one page and one verdict: <b>PASS</b>, <b>QUARANTINE</b>, or <b>BLOCK</b>.
+</p>
 
-**diffly** is a deterministic, terminal-first triage tool for large GitHub pull requests. It fetches the pull request metadata, changed files, unified diff, commit metadata, status checks, and repository tree; parses supported source changes with Tree-sitter; identifies a conservative blast-radius map; applies fixed risk rules; and emits a one-page Markdown review with a `PASS`, `QUARANTINE`, or `BLOCK` verdict.
+<p align="center">
+  <a href="https://github.com/VIVAAN-DHAWAN/diffly-cli/actions/workflows/ci.yml"><img src="https://img.shields.io/badge/CI-passing-brightgreen?style=for-the-badge&logo=githubactions" alt="CI"></a>
+  <a href="https://github.com/VIVAAN-DHAWAN/diffly-cli/releases/latest"><img src="https://img.shields.io/badge/release-v0.3.0-blue?style=for-the-badge" alt="Release"></a>
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License: MIT"></a>
+</p>
 
-This release includes **Phase 1 deterministic triage** plus the optional **Phase 2 literate-diff explainer**. Deterministic facts and verdicts remain authoritative; generated prose is clearly labeled and cannot change `PASS`, `QUARANTINE`, or `BLOCK`.
-
-## At a glance
-
-- **Deterministic by default:** the same pull-request data produces the same policy verdict.
-- **Useful on large diffs:** condenses files, symbols, checks, tests, and risk surfaces into one report.
-- **CI ready:** run it as a CLI, consume stable JSON, or add the bundled GitHub Action.
-- **LLM optional:** generated explanation is isolated from the authoritative verdict and fails closed to deterministic output.
-- **No GitHub CLI dependency:** it talks directly to the GitHub REST API.
-- **Works offline:** `diffly local` triages git changes in any folder on disk — private, archived, or removed repositories included.
-- **Interactive terminal UI:** use arrow keys and the space bar to focus the report on what matters.
-
-## Why it exists
-
-Large AI-generated pull requests can be difficult to review because file-by-file diffs hide the affected symbols, adjacent tests, dependency changes, and high-risk surfaces. diffly-cli makes the deterministic part of that review visible before an LLM is introduced.
+---
 
 ## Install
 
-Requirements are Python 3.10 or newer. The installer creates an isolated environment under `~/.local/share/diffly-cli`, installs the package and its dependencies, and links `diffly` into `~/.local/bin`.
+One line. No GitHub CLI, no account, no config:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/VIVAAN-DHAWAN/diffly-cli/main/install.sh | sh
 ```
 
-That is the complete installation. If `diffly` is not immediately found afterward, add `~/.local/bin` to your `PATH` and open a new shell. No GitHub CLI installation is required. The older `diffly-cli` executable remains as a compatibility alias.
+That's it. If `diffly` isn't found, add `~/.local/bin` to your `PATH` and open a new shell.
 
-A GitHub token is optional for light public use, but authenticated requests provide much higher API limits:
+## Try it in 10 seconds
 
 ```bash
-export GITHUB_TOKEN="github_pat_..."
+diffly pr https://github.com/astral-sh/ruff/pull/27808
 ```
+
+Paste any pull-request URL — or run bare `diffly` for a guided flow. You'll get a keyboard-driven, one-page review: verdict, risk flags, checks, and a per-file blast-radius map. Arrow keys move, space toggles sections, Enter renders, `q` quits.
+
+![diffly-cli animated demonstration](assets/diffly-cli-demo.gif)
+
+---
+
+## What diffly actually does
+
+Large AI-generated pull requests are hard to review because file-by-file diffs hide what matters: which symbols changed, which tests cover them, whether dependencies moved, whether a security-sensitive file was touched. diffly makes the deterministic part of that review visible **before** any LLM gets involved.
+
+It fetches the PR metadata, changed files, unified diff, commits, status checks, and repository tree; parses source changes with Tree-sitter; maps the blast radius; applies fixed risk rules; and emits a one-page Markdown report with a verdict.
+
+<table>
+<tr><td><b>One-page verdicts</b></td><td><code>PASS</code>, <code>QUARANTINE</code>, or <code>BLOCK</code> from fixed, documented rules. Same PR data in, same verdict out — every time.</td></tr>
+<tr><td><b>Blast-radius map</b></td><td>Per file: status, additions/deletions, touched symbols, direct callers visible in changed hunks, and related test files discovered from the repository tree.</td></tr>
+<tr><td><b>Risk flags</b></td><td>Auth/secrets touches, database changes, new dependencies, missing test coverage, failed or pending checks — each with severity and evidence.</td></tr>
+<tr><td><b>Works offline</b></td><td><code>diffly local</code> triages git changes in any folder on disk — private, archived, or removed repositories included.</td></tr>
+<tr><td><b>CI-native</b></td><td>Bundled GitHub Action posts one self-updating verdict comment on every PR. Stable JSON output for scripts.</td></tr>
+<tr><td><b>Optional AI explainer</b></td><td>Bring your own OpenAI-compatible key for a generated narrative — sandboxed, redacted, strictly validated, and never allowed to change the verdict.</td></tr>
+</table>
+
+## Local mode — no GitHub required
+
+Analyze git changes on your own disk. No token, no network:
+
+```bash
+diffly local                      # uncommitted working-tree changes in the current folder
+diffly local ~/code/private-repo  # any checkout — even repos deleted from GitHub
+diffly local --base main          # compare your branch against main instead
+```
+
+Untracked files are included, so brand-new work is never silently ignored. CI checks don't exist locally, so check-derived flags are skipped; everything else behaves exactly as it does for pull requests.
 
 ## GitHub Action
 
-Add this compact workflow to have Diffly analyze every pull request and maintain one verdict comment with the risk flags and blast-radius summary:
+Add this to analyze every pull request automatically:
 
 ```yaml
 name: Diffly
@@ -56,144 +81,71 @@ jobs:
       - uses: VIVAAN-DHAWAN/diffly-cli@main
 ```
 
-To enable the optional explainer in CI, add `DIFFLY_LLM_API_KEY: ${{ secrets.DIFFLY_LLM_API_KEY }}` under the Action step's `env`. Without a key, the Action runs deterministic-only.
+To enable the optional explainer in CI, add `DIFFLY_LLM_API_KEY: ${{ secrets.DIFFLY_LLM_API_KEY }}` under the step's `env`. Without a key, the Action runs deterministic-only.
 
-## Usage
-
-The fastest way to start is simply:
+## Everyday commands
 
 ```bash
-diffly
+diffly                                          # guided wizard
+diffly pr astral-sh/ruff 27808                  # owner/repo + number
+diffly pr https://github.com/astral-sh/ruff/pull/27808   # just paste the URL
+diffly pr astral-sh/ruff 27808 --interactive    # keyboard-driven review
+diffly pr astral-sh/ruff 27808 --output triage.md
+diffly pr astral-sh/ruff 27808 --json           # stable JSON for scripts
+diffly setup                                    # guided tutorial
+diffly doctor                                   # environment diagnostics
 ```
 
-This opens the guided terminal flow. Enter `owner/repo` (or a GitHub URL), the pull-request number, and whether you want an optional generated explanation. The flow validates inputs before making requests, never echoes tokens, and ends in the same keyboard-driven review screen as `--interactive`.
+For automation prefer `--json`: successful triage exits `0` regardless of verdict — enforce policy by reading the `verdict` field. Operational errors exit `2`.
 
-```bash
-diffly pr <owner/repo> <pr-number>
-```
-
-Add the optional literate-diff explanation with an OpenAI-compatible BYOK endpoint:
+### Optional AI explanation
 
 ```bash
 export DIFFLY_LLM_API_KEY="your-key"
-export DIFFLY_LLM_BASE_URL="https://api.openai.com/v1"  # omit for the configured default endpoint
-diffly pr <owner/repo> <pr-number> --explain
+export DIFFLY_LLM_BASE_URL="https://api.openai.com/v1"  # omit for the default endpoint
+diffly pr OWNER/REPO NUMBER --explain
 ```
 
-The default model is `gpt-5-mini`; override it with `DIFFLY_LLM_MODEL` or `--llm-model`. The explainer sends bounded, redacted context, requires strict JSON output, rejects citations to files outside the changed-file set, and fails safely back to deterministic triage when no key is configured or the model response is invalid. Use `--json` with `--explain` to receive the structured literate-diff object.
+Default model is `gpt-5-mini`; override with `DIFFLY_LLM_MODEL` or `--llm-model`. The explainer sends bounded, redacted context, requires strict JSON output, rejects citations to files outside the changed-file set, and fails safely back to deterministic triage when anything is off.
 
-Examples:
-
-```bash
-diffly pr astral-sh/ruff 27808
-diffly pr https://github.com/astral-sh/ruff/pull/27808
-diffly pr astral-sh/ruff 27808 --interactive
-diffly pr astral-sh/ruff 27808 --output triage.md
-diffly pr astral-sh/ruff 27808 --json
-diffly local ~/code/my-project --base main
-diffly --version
-diffly help
-diffly setup
-diffly doctor
-diffly version
-```
-
-New to Diffly? Run `diffly setup` for a short guided tutorial covering PR analysis, interactive controls, automation, troubleshooting, credentials, and privacy. The final step can launch the real PR wizard so you can immediately try what you learned.
-
-The command prints clean terminal Markdown by default. `--json` is provided for CI integration and `--output` saves the Markdown report to a file. The repository argument accepts `owner/repo`, any GitHub URL, or a full pull-request URL; with a pull-request URL the number is inferred.
-
-## Local mode
-
-Analyze git changes on your own disk — no GitHub access, token, or network required:
-
-```bash
-diffly local                      # triage uncommitted working-tree changes in the current folder
-diffly local ~/code/private-repo  # analyze any checkout, including private or deleted repositories
-diffly local --base main          # compare your branch against main instead of the working tree
-```
-
-Local mode runs the identical deterministic pipeline: changed-file inventory, Tree-sitter symbol detection, blast-radius map, and risk rules. CI checks do not exist locally, so check-derived flags are skipped; everything else (auth/secrets, database changes, new dependencies, missing test coverage) behaves exactly as it does for pull requests. Untracked files are included, so brand-new work is never silently ignored.
-
-Run `diffly --help` or `diffly pr --help` for the complete option reference. `--interactive` opens a keyboard-driven selector: use up/down arrows to move, space to toggle sections, Enter to render, and `q` to quit. Pull-request numbers must be positive integers. For automation, prefer `--json`; operational errors exit with status `2` and successful triage exits with status `0` regardless of the verdict, so callers should inspect the `verdict` field when enforcing policy.
-
-## Deterministic policy
+## The verdict policy
 
 | Verdict | Rule |
 | --- | --- |
-| **BLOCK** | A required check failed, or the pull request touches authentication, credentials, secrets, or security-sensitive files. |
-| **QUARANTINE** | The pull request changes database schema or migrations, adds or changes dependencies, lacks obvious test coverage for a production file, or has unavailable/pending checks. |
-| **PASS** | No deterministic rule fired and observed checks passed. `SHIP` remains accepted as a legacy name in older integrations. |
+| **BLOCK** | A required check failed, or the PR touches authentication, credentials, secrets, or security-sensitive files. |
+| **QUARANTINE** | Database schema/migrations, dependency changes, missing obvious test coverage for production files, or unavailable/pending checks. |
+| **PASS** | No rule fired and observed checks passed. `SHIP` remains accepted as a legacy alias. |
 
-The policy is deliberately conservative. A verdict is a review gate, not a claim that a pull request is correct or safe in every context.
+Deliberately conservative: a verdict is a review gate, not a claim that a PR is correct or safe in every context.
 
-## What the blast-radius map contains
+## Real examples
 
-For each changed file, the report lists the file status, additions and deletions, changed symbols detected from supported source languages, direct call sites visible in changed hunks, and related test files discovered from the repository tree. The Phase 1 map is intentionally conservative: a full repository-wide call graph and cross-file symbol resolution are future work.
+Captured from live terminal sessions against public pull requests:
 
-## Demo
+| Pull request | Files | Lines | Verdict | Why |
+| --- | --- | --- | --- | --- |
+| [`microsoft/vscode#330848`](demo/vscode-330848.md) | 25 | +2,557 / -251 | QUARANTINE | production files without obvious test coverage |
+| [`kubernetes/kubernetes#141413`](demo/kubernetes-141413.md) | 41 | +708 / -740 | QUARANTINE | missing coverage + pending `tide` check |
+| [`astral-sh/ruff#27808`](demo/ruff-27808.md) | 53 | +1,845 / -274 | BLOCK | `CodSpeed Performance Analysis` check failed |
 
-The committed demo section is captured from real terminal sessions running diffly-cli against public GitHub pull requests. It records the raw diff statistics beside diffly-cli’s actual one-page deterministic summary; the screenshots and GIF are rendered from those terminal transcripts rather than generated mockups. These figures are dated captures of public pull requests, whose metadata and checks may change after capture.
+Standalone screenshots: [vscode](assets/screenshots/vscode-330848.png) · [kubernetes](assets/screenshots/kubernetes-141413.png) · [ruff](assets/screenshots/ruff-27808.png)
 
-![diffly-cli animated demonstration](assets/diffly-cli-demo.gif)
-
-The same demos are available as standalone screenshots for sharing or issue discussions:
-
-| Pull request | Screenshot |
-| --- | --- |
-| `microsoft/vscode#330848` | ![VS Code pull-request triage screenshot](assets/screenshots/vscode-330848.png) |
-| `kubernetes/kubernetes#141413` | ![Kubernetes pull-request triage screenshot](assets/screenshots/kubernetes-141413.png) |
-| `astral-sh/ruff#27808` | ![Ruff pull-request triage screenshot](assets/screenshots/ruff-27808.png) |
-
-### Demo A: microsoft/vscode#330848
-
-Raw GitHub PR statistics: **25 files**, **+2,557 / -251 lines**, **25 commits**. The one-page deterministic summary produced by diffly-cli is:
-
-```text
-Title: sessions: Add grid layout for chats
-Checks: SUCCESS (27 observed)
-Verdict: QUARANTINE
-Reason: at least one changed production file lacks obvious test coverage
-Risk flags: NO_TEST_COVERAGE
-Blast radius: 25 changed files; changed symbols and direct callers listed per file
-```
-
-Full generated report: [`demo/vscode-330848.md`](demo/vscode-330848.md).
-
-### Demo B: kubernetes/kubernetes#141413
-
-Raw GitHub PR statistics at capture time: **41 files**, **+708 / -740 lines**, **1 commit**. The tool returned `QUARANTINE` because at least one changed production file lacked obvious test coverage and the observed check state included a pending `tide` result.
-
-Full generated report: [`demo/kubernetes-141413.md`](demo/kubernetes-141413.md).
-
-### Demo C: astral-sh/ruff#27808
-
-Raw GitHub PR statistics: **53 files**, **+1,845 / -274 lines**, **4 commits**. The tool returned `BLOCK` because the observed `CodSpeed Performance Analysis` check failed.
-
-Full deterministic report: [`demo/ruff-27808.md`](demo/ruff-27808.md).
-
-### Phase 2 live literate-diff demos
-
-The following reports were generated from live `gpt-5-mini` calls using bounded, redacted context from real public pull requests:
-
-- [`demo/ruff-27808-phase2.md`](demo/ruff-27808-phase2.md): generated narrative for a 49-file Ruff pull request while preserving the deterministic `BLOCK` verdict.
-- [`demo/kubernetes-141413-phase2.md`](demo/kubernetes-141413-phase2.md): generated narrative for a 41-file Kubernetes pull request while preserving the deterministic `QUARANTINE` verdict.
+Live AI-explainer reports (deterministic verdict preserved): [ruff phase 2](demo/ruff-27808-phase2.md) · [kubernetes phase 2](demo/kubernetes-141413-phase2.md)
 
 ## Current limitations
 
-The Phase 2 explainer is optional and requires an OpenAI-compatible API key. It is not a substitute for human review and its prose is not allowed to influence the deterministic verdict. Tree-sitter parsing currently focuses on symbols and direct calls visible in changed hunks, not a complete repository-wide reachability graph. Test coverage detection is heuristic and based on filenames and repository-tree evidence. GitHub checks are summarized from check runs and commit statuses; unavailable checks are quarantined rather than inferred to be passing. The model context is bounded and may be truncated for unusually large pull requests.
+The Phase 2 explainer requires an OpenAI-compatible API key and never influences the verdict. Tree-sitter parsing covers symbols and direct calls visible in changed hunks, not a full repository-wide call graph. Test-coverage detection is heuristic (filenames + repository tree). Unavailable checks are quarantined rather than assumed passing. Model context is bounded and may truncate on very large PRs.
 
 ## Roadmap
 
-The highest-value next steps are:
+- repository-wide symbol resolution and import-aware blast radius;
+- configurable policy files for org-specific risk rules and thresholds;
+- GitHub annotations and check-run output alongside the PR comment;
+- baseline mode reporting only risks introduced vs the target branch;
+- coverage-artifact-based test mapping;
+- SARIF output for code-scanning integrations.
 
-- repository-wide symbol resolution and import-aware blast-radius analysis;
-- configurable policy files for organization-specific risk rules and verdict thresholds;
-- GitHub annotations and check-run output in addition to the existing PR comment;
-- baseline mode that reports only risks introduced relative to the target branch;
-- stronger test-to-production mapping using coverage artifacts when a repository publishes them;
-- SARIF output for code-scanning integrations and durable machine-readable findings.
-
-The Phase 2 contract and safety boundary are documented in [`docs/phase-2-contract.md`](docs/phase-2-contract.md). Broader benchmark methodology and results live in [`docs/benchmarks.md`](docs/benchmarks.md).
+Details: [`docs/phase-2-contract.md`](docs/phase-2-contract.md) · [`docs/benchmarks.md`](docs/benchmarks.md)
 
 ## Development
 
@@ -206,13 +158,13 @@ python -m pip install -e '.[dev]'
 pytest -q
 ```
 
-Keep changes focused and include regression tests for behavior changes. The CI matrix runs the suite on Python 3.10 through 3.13. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full guide, and record user-facing changes in [`CHANGELOG.md`](CHANGELOG.md).
+Keep changes focused, include regression tests, and record user-facing changes in [`CHANGELOG.md`](CHANGELOG.md). See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
-## Security and privacy
+## Security & privacy
 
-Diffly sends GitHub API requests only for the repository and pull request you ask it to inspect. The deterministic mode does not send code to an LLM. With `--explain`, bounded and redacted context is sent to the configured OpenAI-compatible endpoint; review [`docs/phase-2-contract.md`](docs/phase-2-contract.md) before enabling it for sensitive repositories. Never pass tokens on a shared command line when an environment variable or CI secret is available.
+Diffly talks to the GitHub API only for the repo and PR you point it at. Deterministic mode sends no code to any LLM. With `--explain`, bounded redacted context goes to your configured endpoint — read [`docs/phase-2-contract.md`](docs/phase-2-contract.md) before enabling it on sensitive repositories. Prefer environment variables over command-line tokens.
 
-Report security issues privately through [GitHub's security advisory form](https://github.com/VIVAAN-DHAWAN/diffly-cli/security/advisories/new), not a public issue.
+Report vulnerabilities privately via [GitHub security advisories](https://github.com/VIVAAN-DHAWAN/diffly-cli/security/advisories/new).
 
 ## License
 
