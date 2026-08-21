@@ -101,10 +101,13 @@ def compute_flags(metadata: PRMetadata, files: list[ChangedFile], checks: dict[s
         flags.append(RiskFlag("NO_TEST_COVERAGE", "medium", "Changed production files have no obvious neighboring or repository test coverage.", untested[:50]))
 
     check_state = str(checks.get("state", "unknown"))
+    if check_state == "not_applicable":
+        # Local mode has no CI; skip check-derived flags entirely.
+        return flags
     if check_state == "failure":
         flags.append(RiskFlag("CHECKS_FAILED", "critical", "One or more required status checks failed.", list(checks.get("failed", []))))
     elif check_state == "pending":
-        flags.append(RiskFlag("CHECKS_PENDING", "low", "Required status checks are still pending.", [check_state]))
+        flags.append(RiskFlag("CHECKS_PENDING", "low", "Required status checks are still pending.", list(checks.get("pending", [])) or [check_state]))
     elif check_state != "success":
         flags.append(RiskFlag("CHECKS_UNKNOWN", "medium", "Required status checks are missing, pending, or unavailable.", [check_state]))
 
@@ -132,5 +135,8 @@ def verdict_for(flags: list[RiskFlag], checks: dict[str, Any]) -> tuple[str, lis
         reasoning.append("QUARANTINE because required checks are still running.")
     if reasoning:
         return "QUARANTINE", reasoning
-    reasoning.append("PASS because no blocking or quarantine rule fired and all observed checks passed.")
+    if str(checks.get("state")) == "not_applicable":
+        reasoning.append("PASS because no blocking or quarantine rule fired (local analysis has no CI checks).")
+    else:
+        reasoning.append("PASS because no blocking or quarantine rule fired and all observed checks passed.")
     return "PASS", reasoning

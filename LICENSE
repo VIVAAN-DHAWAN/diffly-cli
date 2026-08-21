@@ -1,6 +1,10 @@
-MIT License
+MIT License — diffly
 
 Copyright (c) 2026 Vivaan Dhawan
+
+================================================================================
+PART 1 — THE LICENSE GRANT (standard MIT text)
+================================================================================
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -12,10 +16,92 @@ furnished to do so, subject to the following conditions:
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 
+================================================================================
+PART 2 — DEFINITIONS AND CLARIFICATIONS
+================================================================================
+
+These clarifications are part of this license. Where Part 1 and Part 2 could
+be read differently, Part 1 controls; Part 2 explains intent.
+
+1. "Software" means the diffly source code, its bundled GitHub Action, its
+   install scripts, its documentation, and any object code or distributions
+   built from them, in whole or in part.
+
+2. "Contribution" means any work submitted to the project — including pull
+   requests, patches, and documentation — that is intentionally offered for
+   inclusion in the Software. By submitting a Contribution you agree it is
+   licensed under this same license, with no additional terms or conditions,
+   to the maximum extent permitted by law. You confirm you have the right to
+   license what you submit.
+
+3. Verdicts are opinions, not guarantees. The PASS, QUARANTINE, BLOCK, and
+   related outputs produced by the Software are deterministic heuristics
+   applied at a point in time against data available at that moment. They are
+   review aids only. They do not certify correctness, security, safety,
+   fitness for production, compliance with any law, regulation, or standard,
+   or the absence of defects in any analyzed code, repository, or change.
+   You remain solely responsible for all decisions about the software you
+   review, merge, ship, or operate.
+
+4. Network services. The Software may contact third-party services you direct
+   it to (for example the GitHub REST API) and, only when explicitly enabled
+   by you, an OpenAI-compatible model endpoint you configure. Those services
+   are governed by their own terms. The project authors neither operate those
+   services nor are party to your relationship with them.
+
+5. Trademarks. This license grants no rights in the names "diffly",
+   "diffly-cli", or any related marks, logos, or trade dress, except as
+   strictly required for reasonable attribution or nominative fair use.
+
+================================================================================
+PART 3 — WARRANTY AND LIABILITY (extended statement)
+================================================================================
+
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+FITNESS FOR A PARTICULAR PURPOSE, TITLE, NON-INFRINGEMENT, ACCURACY OF OUTPUT,
+AND UNINTERRUPTED OR ERROR-FREE OPERATION. SOME JURISDICTIONS DO NOT ALLOW THE
+EXCLUSION OF CERTAIN IMPLIED WARRANTIES, SO SOME OF THE ABOVE MAY NOT APPLY TO
+YOU TO THE EXTENT LAW REQUIRES IT.
+
+IN NO EVENT AND UNDER NO LEGAL THEORY — WHETHER IN CONTRACT, TORT (INCLUDING
+NEGLIGENCE), STRICT LIABILITY, STATUTE, OR OTHERWISE — SHALL THE AUTHORS,
+COPYRIGHT HOLDERS, OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, PUNITIVE, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, PROFITS, GOODWILL, OR REPUTATION; BUSINESS INTERRUPTION; SECURITY
+INCIDENTS; BUILD FAILURES; OR RELEASED DEFECTS) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, ARISING IN ANY WAY OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR ITS USE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE TOTAL AGGREGATE
+LIABILITY OF THE AUTHORS AND COPYRIGHT HOLDERS FOR ALL CLAIMS RELATING TO THE
+SOFTWARE SHALL BE LIMITED TO THE GREATER OF ONE HUNDRED UNITED STATES DOLLARS
+(USD 100) OR THE AMOUNT YOU PAID FOR THE SOFTWARE, WHICH BY DEFAULT IS ZERO.
+
+================================================================================
+PART 4 — GENERAL TERMS
+================================================================================
+
+1. Compliance with law. Your use of the Software must comply with applicable
+   export-control, sanctions, privacy, and other laws.
+
+2. Severability. If any provision of this license is held unenforceable, it
+   will be modified to the minimum extent necessary, and the remaining
+   provisions stay in force.
+
+3. No waiver. Failure to enforce any provision is not a waiver of it.
+
+4. Termination. The licenses granted here terminate automatically if you
+   breach this license. They otherwise survive as long as the copyright law
+   of your jurisdiction requires, and are perpetual where permitted.
+
+5. Entire agreement. This license is the entire agreement between you and the
+   copyright holders concerning the Software, superseding any other terms
+   communicated alongside copies of it.
+
+6. Language. This license is written in English; translations are for
+   convenience only, and the English text controls.
+
+THIS LICENSE FOLLOWS THE MIT LICENSE TEMPLATE AND ADDS CLARIFYING MATERIAL.
+THE GRANT IN PART 1 REMAINS THE GOVERNING PERMISSION.

@@ -16,6 +16,7 @@ This release includes **Phase 1 deterministic triage** plus the optional **Phase
 - **CI ready:** run it as a CLI, consume stable JSON, or add the bundled GitHub Action.
 - **LLM optional:** generated explanation is isolated from the authoritative verdict and fails closed to deterministic output.
 - **No GitHub CLI dependency:** it talks directly to the GitHub REST API.
+- **Works offline:** `diffly local` triages git changes in any folder on disk — private, archived, or removed repositories included.
 - **Interactive terminal UI:** use arrow keys and the space bar to focus the report on what matters.
 
 ## Why it exists
@@ -84,10 +85,13 @@ The default model is `gpt-5-mini`; override it with `DIFFLY_LLM_MODEL` or `--llm
 Examples:
 
 ```bash
-diffly pr pallets/urllib3 3456
-diffly pr pallets/urllib3 3456 --interactive
-diffly pr pallets/urllib3 3456 --output triage.md
-diffly pr pallets/urllib3 3456 --json
+diffly pr astral-sh/ruff 27808
+diffly pr https://github.com/astral-sh/ruff/pull/27808
+diffly pr astral-sh/ruff 27808 --interactive
+diffly pr astral-sh/ruff 27808 --output triage.md
+diffly pr astral-sh/ruff 27808 --json
+diffly local ~/code/my-project --base main
+diffly --version
 diffly help
 diffly setup
 diffly doctor
@@ -96,7 +100,19 @@ diffly version
 
 New to Diffly? Run `diffly setup` for a short guided tutorial covering PR analysis, interactive controls, automation, troubleshooting, credentials, and privacy. The final step can launch the real PR wizard so you can immediately try what you learned.
 
-The command prints clean terminal Markdown by default. `--json` is provided for CI integration and `--output` saves the Markdown report to a file.
+The command prints clean terminal Markdown by default. `--json` is provided for CI integration and `--output` saves the Markdown report to a file. The repository argument accepts `owner/repo`, any GitHub URL, or a full pull-request URL; with a pull-request URL the number is inferred.
+
+## Local mode
+
+Analyze git changes on your own disk — no GitHub access, token, or network required:
+
+```bash
+diffly local                      # triage uncommitted working-tree changes in the current folder
+diffly local ~/code/private-repo  # analyze any checkout, including private or deleted repositories
+diffly local --base main          # compare your branch against main instead of the working tree
+```
+
+Local mode runs the identical deterministic pipeline: changed-file inventory, Tree-sitter symbol detection, blast-radius map, and risk rules. CI checks do not exist locally, so check-derived flags are skipped; everything else (auth/secrets, database changes, new dependencies, missing test coverage) behaves exactly as it does for pull requests. Untracked files are included, so brand-new work is never silently ignored.
 
 Run `diffly --help` or `diffly pr --help` for the complete option reference. `--interactive` opens a keyboard-driven selector: use up/down arrows to move, space to toggle sections, Enter to render, and `q` to quit. Pull-request numbers must be positive integers. For automation, prefer `--json`; operational errors exit with status `2` and successful triage exits with status `0` regardless of the verdict, so callers should inspect the `verdict` field when enforcing policy.
 
@@ -190,7 +206,7 @@ python -m pip install -e '.[dev]'
 pytest -q
 ```
 
-Keep changes focused and include regression tests for behavior changes. The CI matrix runs the suite on Python 3.10 through 3.13.
+Keep changes focused and include regression tests for behavior changes. The CI matrix runs the suite on Python 3.10 through 3.13. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full guide, and record user-facing changes in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Security and privacy
 

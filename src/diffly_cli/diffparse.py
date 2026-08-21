@@ -104,6 +104,9 @@ def changed_line_numbers(file: ChangedFile) -> list[int]:
     for hunk in file.hunks:
         line_no = hunk.new_start
         for line in hunk.lines:
+            if line.startswith("\\"):
+                # "\ No newline at end of file" is metadata, not a diff line.
+                continue
             if line.startswith("+"):
                 numbers.append(line_no)
                 line_no += 1

@@ -1,4 +1,4 @@
-from diffly_cli.diffparse import parse_hunks
+from diffly_cli.diffparse import changed_line_numbers, parse_hunks
 from diffly_cli.models import ChangedFile, PRMetadata
 from diffly_cli.triage import compute_flags, verdict_for
 
@@ -53,3 +53,22 @@ def test_pending_checks_quarantine():
     assert "CHECKS_PENDING" in {flag.code for flag in flags}
     assert verdict == "QUARANTINE"
     assert any("still running" in item for item in reasoning)
+
+
+def test_pending_flag_evidence_lists_pending_check_names():
+    flags = compute_flags(metadata(), [], {"state": "pending", "count": 2, "pending": ["ci/build"]}, [])
+    flag = next(flag for flag in flags if flag.code == "CHECKS_PENDING")
+    assert flag.evidence == ["ci/build"]
+
+
+def test_changed_line_numbers_ignore_no_newline_markers():
+    file = ChangedFile(
+        "src/app.py",
+        "modified",
+        2,
+        0,
+        2,
+        "@@ -1 +1 @@\n-old\n+new\n\\ No newline at end of file\n+extra\n",
+    )
+    file.hunks = parse_hunks(file.patch)
+    assert changed_line_numbers(file) == [1, 2]
