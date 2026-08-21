@@ -104,7 +104,7 @@ def test_check_and_status_endpoints_are_paginated():
 
 
 def test_repository_parser_rejects_path_and_query_injection_values():
-    assert parse_repo("https://github.com/acme/demo") == ("acme", "demo")
+    assert parse_repo("https://github.com/acme/demo").slug == "acme/demo"
     for value in ("acme/demo?x=1", "acme/demo#fragment", "acme/demo%2Fother", "acme/demo/extra"):
         with pytest.raises(argparse.ArgumentTypeError):
             parse_repo(value)
@@ -116,6 +116,76 @@ def test_cli_rejects_non_positive_pull_request_numbers():
         parser.parse_args(["pr", "acme/demo", "0"])
     with pytest.raises(SystemExit):
         parser.parse_args(["pr", "acme/demo", "-1"])
+    with pytest.raises(SystemExit):
+        parser.parse_args(["pr", "acme/demo", "1_000"])
+
+
+def test_repository_parser_strips_surrounding_whitespace():
+    assert parse_repo(" acme/demo ").slug == "acme/demo"
+    assert parse_repo("  https://github.com/acme/demo/  ").slug == "acme/demo"
+
+
+def test_repository_parser_accepts_pull_request_urls():
+    reference = parse_repo("https://github.com/acme/demo/pull/42")
+    assert (reference.owner, reference.repo, reference.pr_number) == ("acme", "demo", 42)
+    assert parse_repo("acme/demo").pr_number is None
+    with pytest.raises(argparse.ArgumentTypeError):
+        parse_repo("https://github.com/acme/demo/pull/not-a-number")
+
+
+def test_version_flag_prints_version_and_exits(capsys):
+    from diffly_cli import __version__
+
+    parser = build_parser()
+    with pytest.raises(SystemExit) as excinfo:
+        parser.parse_args(["--version"])
+    assert excinfo.value.code == 0
+    assert __version__ in capsys.readouterr().out
+
+
+def test_zero_argument_invocation_in_non_tty_shows_help(capsys, monkeypatch):
+    import diffly_cli.cli as cli
+
+    monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: False)
+    assert cli.main([]) == 2
+    assert "usage:" in capsys.readouterr().out
+
+
+def test_pr_command_requires_number_when_repository_has_no_url_number():
+    import diffly_cli.cli as cli
+
+    parser = build_parser()
+    args = parser.parse_args(["pr", "acme/demo"])
+    assert args.number is None
+    assert cli.run_pr(args) == 2
+    args_with_url = parser.parse_args(["pr", "https://github.com/acme/demo/pull/42"])
+    assert args_with_url.number is None
+    assert args_with_url.repository.pr_number == 42
+
+
+def test_wizard_builds_arguments_from_parser_defaults(monkeypatch):
+    import diffly_cli.cli as cli
+
+    captured: dict[str, argparse.Namespace] = {}
+
+    def fake_run_pr(args):
+        captured["args"] = args
+        return 0
+
+    monkeypatch.setattr(cli, "run_pr", fake_run_pr)
+    monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(cli.sys.stdout, "isatty", lambda: True)
+    answers = iter(["acme/demo", "42"])
+    monkeypatch.setattr(cli.Prompt, "ask", staticmethod(lambda *a, **k: next(answers)))
+    monkeypatch.setattr(cli.Confirm, "ask", staticmethod(lambda *a, **k: False))
+    assert cli.run_wizard(build_parser()) == 0
+    args = captured["args"]
+    assert args.repository.slug == "acme/demo"
+    assert args.number == 42
+    assert args.interactive is True
+    assert args.output is None
+    assert args.json is False
+    assert args.llm_model is None
 
 
 def test_cli_exposes_interactive_and_diagnostics_commands():
