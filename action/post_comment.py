@@ -27,6 +27,9 @@ def request(url: str, token: str, method: str = "GET", payload: dict | None = No
             raw = response.read().decode()
             return json.loads(raw) if raw else {}
     except urllib.error.HTTPError as exc:
+        if exc.code == 404 and method == "GET":
+            # Issue comments might not exist or be accessible
+            return []
         detail = exc.read().decode(errors="replace")
         raise SystemExit(f"GitHub API {exc.code}: {detail[:500]}") from exc
 
