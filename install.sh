@@ -14,10 +14,12 @@ python3 -m venv "${DIFFLY_HOME}"
 "${DIFFLY_HOME}/bin/python" -m pip install --upgrade pip >/dev/null
 "${DIFFLY_HOME}/bin/python" -m pip install --upgrade "${DIFFLY_SOURCE}"
 mkdir -p "${DIFFLY_BIN}"
-ln -sf "${DIFFLY_HOME}/bin/diffly-cli" "${DIFFLY_BIN}/diffly-cli"
+ln -sf "${DIFFLY_HOME}/bin/diffly" "${DIFFLY_BIN}/diffly"
+# Keep the old executable as a compatibility alias for existing scripts.
+ln -sf "${DIFFLY_HOME}/bin/diffly" "${DIFFLY_BIN}/diffly-cli"
 
-printf '\nInstalled diffly-cli.\n'
-printf 'Run: diffly-cli pr <owner/repo> <pr-number>\n'
+printf '\nInstalled diffly.\n'
+printf 'Run: diffly pr <owner/repo> <pr-number>\n'
 case ":${PATH}:" in
   *":${DIFFLY_BIN}:"*) ;;
   *) printf 'If the command is not found, add %s to PATH.\n' "${DIFFLY_BIN}" ;;

@@ -25,6 +25,16 @@ def _matches(path: str, patterns: list[str]) -> bool:
     return any(fnmatch.fnmatch(lowered, pattern.lower()) or fnmatch.fnmatch(lowered.split("/")[-1], pattern.lower()) for pattern in patterns)
 
 
+def _is_production_file(path: str) -> bool:
+    lowered = path.lower()
+    parts = lowered.split("/")
+    if any(part in {"docs", "examples", "fixtures", "generated", "tests", "test"} for part in parts):
+        return False
+    if _matches(path, TEST_PATTERNS):
+        return False
+    return not lowered.endswith((".md", ".txt", ".json")) and lowered != "install.sh"
+
+
 def _added_dependency_names(file: ChangedFile) -> list[str]:
     if file.path.rsplit("/", 1)[-1] not in DEPENDENCY_FILES:
         return []
@@ -85,7 +95,7 @@ def compute_flags(metadata: PRMetadata, files: list[ChangedFile], checks: dict[s
             continue
         coverage = _covered_by_test(file, test_paths + changed_test_paths)
         file.tests_found = coverage
-        if not coverage:
+        if _is_production_file(file.path) and not coverage:
             untested.append(file.path)
     if untested and tree_complete:
         flags.append(RiskFlag("NO_TEST_COVERAGE", "medium", "Changed production files have no obvious neighboring or repository test coverage.", untested[:50]))
@@ -93,6 +103,8 @@ def compute_flags(metadata: PRMetadata, files: list[ChangedFile], checks: dict[s
     check_state = str(checks.get("state", "unknown"))
     if check_state == "failure":
         flags.append(RiskFlag("CHECKS_FAILED", "critical", "One or more required status checks failed.", list(checks.get("failed", []))))
+    elif check_state == "pending":
+        flags.append(RiskFlag("CHECKS_PENDING", "low", "Required status checks are still pending.", [check_state]))
     elif check_state != "success":
         flags.append(RiskFlag("CHECKS_UNKNOWN", "medium", "Required status checks are missing, pending, or unavailable.", [check_state]))
 
@@ -115,8 +127,10 @@ def verdict_for(flags: list[RiskFlag], checks: dict[str, Any]) -> tuple[str, lis
     if "NO_TEST_COVERAGE" in codes:
         reasoning.append("QUARANTINE because at least one changed production file lacks obvious test coverage.")
     if "CHECKS_UNKNOWN" in codes:
-        reasoning.append("QUARANTINE because the affected pull request does not have a confirmed passing check result.")
+        reasoning.append("QUARANTINE because the pull request does not have a confirmed passing check result.")
+    if "CHECKS_PENDING" in codes:
+        reasoning.append("QUARANTINE because required checks are still running.")
     if reasoning:
         return "QUARANTINE", reasoning
-    reasoning.append("SHIP because no deterministic risk rule fired and all observed checks passed.")
-    return "SHIP", reasoning
+    reasoning.append("PASS because no blocking or quarantine rule fired and all observed checks passed.")
+    return "PASS", reasoning

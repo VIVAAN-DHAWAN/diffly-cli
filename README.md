@@ -1,13 +1,13 @@
-# diffly-cli
+# diffly
 
 [![CI](https://github.com/VIVAAN-DHAWAN/diffly-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/VIVAAN-DHAWAN/diffly-cli/actions/workflows/ci.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/VIVAAN-DHAWAN/diffly-cli)](https://github.com/VIVAAN-DHAWAN/diffly-cli/releases/latest)
 
-**diffly-cli** is a deterministic, terminal-first triage tool for large GitHub pull requests. It fetches the pull request metadata, changed files, unified diff, commit metadata, status checks, and repository tree; parses supported source changes with Tree-sitter; identifies a conservative blast-radius map; applies fixed risk rules; and emits a one-page Markdown review with a `SHIP`, `QUARANTINE`, or `BLOCK` verdict.
+**diffly** is a deterministic, terminal-first triage tool for large GitHub pull requests. It fetches the pull request metadata, changed files, unified diff, commit metadata, status checks, and repository tree; parses supported source changes with Tree-sitter; identifies a conservative blast-radius map; applies fixed risk rules; and emits a one-page Markdown review with a `PASS`, `QUARANTINE`, or `BLOCK` verdict.
 
-This release includes **Phase 1 deterministic triage** plus the optional **Phase 2 literate-diff explainer**. Deterministic facts and verdicts remain authoritative; generated prose is clearly labeled and cannot change `SHIP`, `QUARANTINE`, or `BLOCK`.
+This release includes **Phase 1 deterministic triage** plus the optional **Phase 2 literate-diff explainer**. Deterministic facts and verdicts remain authoritative; generated prose is clearly labeled and cannot change `PASS`, `QUARANTINE`, or `BLOCK`.
 
 ## At a glance
 
@@ -16,6 +16,7 @@ This release includes **Phase 1 deterministic triage** plus the optional **Phase
 - **CI ready:** run it as a CLI, consume stable JSON, or add the bundled GitHub Action.
 - **LLM optional:** generated explanation is isolated from the authoritative verdict and fails closed to deterministic output.
 - **No GitHub CLI dependency:** it talks directly to the GitHub REST API.
+- **Interactive terminal UI:** use arrow keys and the space bar to focus the report on what matters.
 
 ## Why it exists
 
@@ -23,13 +24,13 @@ Large AI-generated pull requests can be difficult to review because file-by-file
 
 ## Install
 
-Requirements are Python 3.10 or newer. The installer creates an isolated environment under `~/.local/share/diffly-cli`, installs the package and its dependencies, and links the command into `~/.local/bin`.
+Requirements are Python 3.10 or newer. The installer creates an isolated environment under `~/.local/share/diffly-cli`, installs the package and its dependencies, and links `diffly` into `~/.local/bin`.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/VIVAAN-DHAWAN/diffly-cli/main/install.sh | sh
 ```
 
-That is the complete installation. If `diffly-cli` is not immediately found afterward, add `~/.local/bin` to your `PATH` and open a new shell. No GitHub CLI installation is required.
+That is the complete installation. If `diffly` is not immediately found afterward, add `~/.local/bin` to your `PATH` and open a new shell. No GitHub CLI installation is required. The older `diffly-cli` executable remains as a compatibility alias.
 
 A GitHub token is optional for light public use, but authenticated requests provide much higher API limits:
 
@@ -58,8 +59,16 @@ To enable the optional explainer in CI, add `DIFFLY_LLM_API_KEY: ${{ secrets.DIF
 
 ## Usage
 
+The fastest way to start is simply:
+
 ```bash
-diffly-cli pr <owner/repo> <pr-number>
+diffly
+```
+
+This opens the guided terminal flow. Enter `owner/repo` (or a GitHub URL), the pull-request number, and whether you want an optional generated explanation. The flow validates inputs before making requests, never echoes tokens, and ends in the same keyboard-driven review screen as `--interactive`.
+
+```bash
+diffly pr <owner/repo> <pr-number>
 ```
 
 Add the optional literate-diff explanation with an OpenAI-compatible BYOK endpoint:
@@ -67,7 +76,7 @@ Add the optional literate-diff explanation with an OpenAI-compatible BYOK endpoi
 ```bash
 export DIFFLY_LLM_API_KEY="your-key"
 export DIFFLY_LLM_BASE_URL="https://api.openai.com/v1"  # omit for the configured default endpoint
-diffly-cli pr <owner/repo> <pr-number> --explain
+diffly pr <owner/repo> <pr-number> --explain
 ```
 
 The default model is `gpt-5-mini`; override it with `DIFFLY_LLM_MODEL` or `--llm-model`. The explainer sends bounded, redacted context, requires strict JSON output, rejects citations to files outside the changed-file set, and fails safely back to deterministic triage when no key is configured or the model response is invalid. Use `--json` with `--explain` to receive the structured literate-diff object.
@@ -75,14 +84,21 @@ The default model is `gpt-5-mini`; override it with `DIFFLY_LLM_MODEL` or `--llm
 Examples:
 
 ```bash
-diffly-cli pr pallets/urllib3 3456
-diffly-cli pr pallets/urllib3 3456 --output triage.md
-diffly-cli pr pallets/urllib3 3456 --json
+diffly pr pallets/urllib3 3456
+diffly pr pallets/urllib3 3456 --interactive
+diffly pr pallets/urllib3 3456 --output triage.md
+diffly pr pallets/urllib3 3456 --json
+diffly help
+diffly setup
+diffly doctor
+diffly version
 ```
+
+New to Diffly? Run `diffly setup` for a short guided tutorial covering PR analysis, interactive controls, automation, troubleshooting, credentials, and privacy. The final step can launch the real PR wizard so you can immediately try what you learned.
 
 The command prints clean terminal Markdown by default. `--json` is provided for CI integration and `--output` saves the Markdown report to a file.
 
-Run `diffly-cli pr --help` for the complete option reference. Pull-request numbers must be positive integers. For automation, prefer `--json`; operational errors exit with status `2` and successful triage exits with status `0` regardless of the verdict, so callers should inspect the `verdict` field when enforcing policy.
+Run `diffly --help` or `diffly pr --help` for the complete option reference. `--interactive` opens a keyboard-driven selector: use up/down arrows to move, space to toggle sections, Enter to render, and `q` to quit. Pull-request numbers must be positive integers. For automation, prefer `--json`; operational errors exit with status `2` and successful triage exits with status `0` regardless of the verdict, so callers should inspect the `verdict` field when enforcing policy.
 
 ## Deterministic policy
 
@@ -90,7 +106,7 @@ Run `diffly-cli pr --help` for the complete option reference. Pull-request numbe
 | --- | --- |
 | **BLOCK** | A required check failed, or the pull request touches authentication, credentials, secrets, or security-sensitive files. |
 | **QUARANTINE** | The pull request changes database schema or migrations, adds or changes dependencies, lacks obvious test coverage for a production file, or has unavailable/pending checks. |
-| **SHIP** | No deterministic rule fired and observed checks passed. |
+| **PASS** | No deterministic rule fired and observed checks passed. `SHIP` remains accepted as a legacy name in older integrations. |
 
 The policy is deliberately conservative. A verdict is a review gate, not a claim that a pull request is correct or safe in every context.
 

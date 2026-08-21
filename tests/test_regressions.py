@@ -4,7 +4,7 @@ from dataclasses import asdict
 
 import pytest
 
-from diffly_cli.cli import build_parser, build_result, parse_repo, summarize_checks
+from diffly_cli.cli import build_parser, build_result, parse_repo, run_wizard, summarize_checks
 from diffly_cli.github import GitHubClient, GitHubError, RepositoryTreeResult
 from diffly_cli.models import ChangedFile, PRMetadata
 
@@ -116,3 +116,27 @@ def test_cli_rejects_non_positive_pull_request_numbers():
         parser.parse_args(["pr", "acme/demo", "0"])
     with pytest.raises(SystemExit):
         parser.parse_args(["pr", "acme/demo", "-1"])
+
+
+def test_cli_exposes_interactive_and_diagnostics_commands():
+    parser = build_parser()
+    args = parser.parse_args(["pr", "acme/demo", "1", "--interactive"])
+    assert args.interactive is True
+    assert parser.parse_args(["doctor"]).command == "doctor"
+    assert parser.parse_args(["version"]).command == "version"
+    assert parser.parse_args(["help"]).command == "help"
+    assert parser.parse_args(["setup"]).command == "setup"
+
+
+def test_zero_argument_invocation_uses_wizard(monkeypatch):
+    import diffly_cli.cli as cli
+
+    called = {}
+
+    def fake_wizard(parser):
+        called["parser"] = parser
+        return 0
+
+    monkeypatch.setattr(cli, "run_wizard", fake_wizard)
+    assert cli.main([]) == 0
+    assert "parser" in called
