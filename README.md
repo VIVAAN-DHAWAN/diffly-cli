@@ -59,6 +59,14 @@ To enable the optional explainer in CI, add `DIFFLY_LLM_API_KEY: ${{ secrets.DIF
 
 ## Usage
 
+The fastest way to start is simply:
+
+```bash
+diffly
+```
+
+This opens the guided terminal flow. Enter `owner/repo` (or a GitHub URL), the pull-request number, and whether you want an optional generated explanation. The flow validates inputs before making requests, never echoes tokens, and ends in the same keyboard-driven review screen as `--interactive`.
+
 ```bash
 diffly pr <owner/repo> <pr-number>
 ```
