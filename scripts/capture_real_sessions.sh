@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 CAPTURE_DIR="$ROOT/assets/real-captures"
 mkdir -p "$CAPTURE_DIR"
 
