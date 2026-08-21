@@ -125,7 +125,7 @@ def test_cli_exposes_interactive_and_diagnostics_commands():
     assert parser.parse_args(["doctor"]).command == "doctor"
     assert parser.parse_args(["version"]).command == "version"
     assert parser.parse_args(["help"]).command == "help"
-    assert parser.parse_args(["setyo"]).command == "setyo"
+    assert parser.parse_args(["setup"]).command == "setup"
 
 
 def test_zero_argument_invocation_uses_wizard(monkeypatch):

@@ -411,7 +411,7 @@ def run_wizard(parser: argparse.ArgumentParser) -> int:
     return run_pr(args)
 
 
-def run_setyo(args: argparse.Namespace) -> int:
+def run_setup(args: argparse.Namespace) -> int:
     """Teach the core Diffly workflow through a short terminal walkthrough."""
     pages = [
         ("Welcome", "[bold cyan]diffly[/] turns a GitHub pull request into a deterministic review gate.\n\nRun [bold]diffly[/] with no arguments whenever you want the guided PR wizard."),
@@ -428,7 +428,7 @@ def run_setyo(args: argparse.Namespace) -> int:
         if choice.strip().lower() == "q":
             return 0
     console.clear()
-    console.print(Panel.fit("[bold green]Setup complete[/]\n[dim]You can rerun this guide anytime with `diffly setyo`.[/]", border_style="green", padding=(1, 2)))
+    console.print(Panel.fit("[bold green]Setup complete[/]\n[dim]You can rerun this guide anytime with `diffly setup`.[/]", border_style="green", padding=(1, 2)))
     if Confirm.ask("[cyan]Try the guided PR wizard now?[/]", default=True):
         return run_wizard(args.root_parser)
     return 0
@@ -454,8 +454,8 @@ def build_parser() -> argparse.ArgumentParser:
     version.set_defaults(func=run_version)
     help_command = subparsers.add_parser("help", help="Show commands, options, and examples")
     help_command.set_defaults(func=run_help, root_parser=parser)
-    setyo = subparsers.add_parser("setyo", help="Learn Diffly through a guided terminal tutorial")
-    setyo.set_defaults(func=run_setyo, root_parser=parser)
+    setup = subparsers.add_parser("setup", help="Learn Diffly through a guided terminal tutorial")
+    setup.set_defaults(func=run_setup, root_parser=parser)
     return parser
 
 
