@@ -89,9 +89,12 @@ diffly pr pallets/urllib3 3456 --interactive
 diffly pr pallets/urllib3 3456 --output triage.md
 diffly pr pallets/urllib3 3456 --json
 diffly help
+diffly setyo
 diffly doctor
 diffly version
 ```
+
+New to Diffly? Run `diffly setyo` for a short guided tutorial covering PR analysis, interactive controls, automation, troubleshooting, credentials, and privacy. The final step can launch the real PR wizard so you can immediately try what you learned.
 
 The command prints clean terminal Markdown by default. `--json` is provided for CI integration and `--output` saves the Markdown report to a file.
 

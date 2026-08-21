@@ -411,6 +411,29 @@ def run_wizard(parser: argparse.ArgumentParser) -> int:
     return run_pr(args)
 
 
+def run_setyo(args: argparse.Namespace) -> int:
+    """Teach the core Diffly workflow through a short terminal walkthrough."""
+    pages = [
+        ("Welcome", "[bold cyan]diffly[/] turns a GitHub pull request into a deterministic review gate.\n\nRun [bold]diffly[/] with no arguments whenever you want the guided PR wizard."),
+        ("Review a PR", "[bold]diffly pr OWNER/REPO NUMBER[/]\n\nAdd [cyan]--interactive[/] for the keyboard view, [cyan]--explain[/] for optional generated context, or [cyan]--output report.md[/] to save Markdown."),
+        ("Interactive controls", "[cyan]↑ / ↓[/] move between report sections\n[cyan]Space[/] enables or disables a section\n[cyan]Enter[/] renders the focused report\n[cyan]q[/] exits"),
+        ("Automation", "Use [bold]diffly pr OWNER/REPO NUMBER --json[/] in scripts and CI.\n\nThe command exits 0 after successful analysis; enforce policy by reading the JSON [cyan]verdict[/] field."),
+        ("Troubleshooting", "Run [bold]diffly doctor[/] to check Python, terminal support, token configuration, and PATH setup.\n\nRun [bold]diffly help[/] for the complete command list and [bold]diffly version[/] when reporting an issue."),
+        ("Credentials and privacy", "Set [bold]GITHUB_TOKEN[/] for private repositories and higher API limits. Tokens are never shown by the wizard.\n\nDeterministic mode sends no code to an LLM. [cyan]--explain[/] uses your configured model endpoint."),
+    ]
+    for index, (title, body) in enumerate(pages, start=1):
+        console.clear()
+        console.print(Panel(body, title=f"[bold]{index}/{len(pages)} · {title}[/]", subtitle="[dim]Enter next · q quit[/]", border_style="cyan", padding=(1, 2)))
+        choice = Prompt.ask("", default="", show_default=False)
+        if choice.strip().lower() == "q":
+            return 0
+    console.clear()
+    console.print(Panel.fit("[bold green]Setup complete[/]\n[dim]You can rerun this guide anytime with `diffly setyo`.[/]", border_style="green", padding=(1, 2)))
+    if Confirm.ask("[cyan]Try the guided PR wizard now?[/]", default=True):
+        return run_wizard(args.root_parser)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="diffly", description="Deterministic triage for large GitHub pull requests", formatter_class=argparse.RawDescriptionHelpFormatter, epilog="Examples:\n  diffly pr pallets/urllib3 3456\n  diffly pr pallets/urllib3 3456 --interactive\n  diffly doctor")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -431,6 +454,8 @@ def build_parser() -> argparse.ArgumentParser:
     version.set_defaults(func=run_version)
     help_command = subparsers.add_parser("help", help="Show commands, options, and examples")
     help_command.set_defaults(func=run_help, root_parser=parser)
+    setyo = subparsers.add_parser("setyo", help="Learn Diffly through a guided terminal tutorial")
+    setyo.set_defaults(func=run_setyo, root_parser=parser)
     return parser
 
 
