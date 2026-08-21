@@ -53,12 +53,18 @@ def main() -> int:
             break
         page += 1
     match = next((item for item in existing if MARKER in (item.get("body") or "")), None)
-    if match:
-        request(f"{base}/{match['id']}", token, "PATCH", {"body": body})
-        print(f"Updated Diffly comment {match['id']}")
-    else:
-        created = request(base, token, "POST", {"body": body})
-        print(f"Created Diffly comment {created.get('id', 'unknown')}")
+    try:
+        if match:
+            request(f"{base}/{match['id']}", token, "PATCH", {"body": body})
+            print(f"Updated Diffly comment {match['id']}")
+        else:
+            created = request(base, token, "POST", {"body": body})
+            print(f"Created Diffly comment {created.get('id', 'unknown')}")
+    except SystemExit as e:
+        if "404" in str(e) and "GitHub API" in str(e):
+            print(f"Warning: Could not post comment due to 404 (possibly missing permissions for PR comments in this context): {e}")
+        else:
+            raise
     return 0
 
 
