@@ -19,12 +19,21 @@ def test_parse_hunks_tracks_ranges_and_lines():
     assert "+new" in hunks[0].lines
 
 
-def test_auth_change_blocks():
+def test_auth_change_quarantines_for_focused_review():
     file = ChangedFile("src/auth.py", "modified", 1, 0, 1, "+def login():\n")
     flags = compute_flags(metadata(), [file], {"state": "success", "count": 1}, ["src/auth.py", "tests/test_auth.py"])
     verdict, _ = verdict_for(flags, {"state": "success"})
     assert "AUTH_OR_SECRET" in {flag.code for flag in flags}
+    assert verdict == "QUARANTINE"
+
+
+def test_exposed_credential_blocks():
+    file = ChangedFile("src/settings.py", "modified", 1, 0, 1, "+API_KEY = 'ghp_abcdefghijklmnopqrstuvwxyz123456'\n")
+    flags = compute_flags(metadata(), [file], {"state": "success", "count": 1}, ["src/settings.py", "tests/test_settings.py"])
+    verdict, reasoning = verdict_for(flags, {"state": "success"})
+    assert "EXPOSED_SECRET" in {flag.code for flag in flags}
     assert verdict == "BLOCK"
+    assert "credential-like value" in reasoning[0]
 
 
 def test_dependency_and_missing_tests_quarantines():
@@ -45,6 +54,24 @@ def test_all_clear_ships():
     verdict, _ = verdict_for(flags, {"state": "success"})
     assert not flags
     assert verdict == "PASS"
+
+
+def test_missing_obvious_test_coverage_is_a_pass_with_review_note():
+    file = ChangedFile("src/new_module.py", "added", 3, 0, 3, "+def run():\n+    return 1\n")
+    flags = compute_flags(metadata(), [file], {"state": "success", "count": 1}, ["src/new_module.py"])
+    verdict, reasoning = verdict_for(flags, {"state": "success"})
+    assert "NO_TEST_COVERAGE" in {flag.code for flag in flags}
+    assert verdict == "PASS"
+    assert "review notes" in reasoning[0]
+
+
+def test_unknown_checks_do_not_downgrade_an_otherwise_healthy_pr():
+    file = ChangedFile("tests/test_math.py", "modified", 1, 0, 1, "+def test_math():\n")
+    flags = compute_flags(metadata(), [file], {"state": "unknown", "count": 0}, ["tests/test_math.py"])
+    verdict, reasoning = verdict_for(flags, {"state": "unknown"})
+    assert "CHECKS_UNKNOWN" in {flag.code for flag in flags}
+    assert verdict == "PASS"
+    assert "status checks were unavailable" in reasoning[0]
 
 
 def test_pending_checks_quarantine():

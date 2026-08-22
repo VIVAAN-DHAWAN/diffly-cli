@@ -44,12 +44,12 @@ def test_clean_tree_passes_locally(repo: Path) -> None:
     assert result.source.startswith("Local git")
 
 
-def test_working_tree_change_without_tests_quarantines(repo: Path) -> None:
+def test_working_tree_change_without_tests_passes_with_a_review_note(repo: Path) -> None:
     (repo / "src" / "orphan_module.py").write_text("def lonely():\n    return 1\n")
     result = build_local_result(str(repo))
     codes = {flag.code for flag in result.flags}
     assert "NO_TEST_COVERAGE" in codes
-    assert result.verdict == "QUARANTINE"
+    assert result.verdict == "PASS"
     assert result.metadata.changed_files == 1
 
 
@@ -63,12 +63,12 @@ def test_untracked_files_are_included(repo: Path) -> None:
     assert new_file.touched_symbols == ["fresh"]
 
 
-def test_auth_change_blocks_locally(repo: Path) -> None:
+def test_auth_change_quarantines_locally(repo: Path) -> None:
     (repo / "src" / "credentials.py").write_text("TOKEN = 'value'\n")
     result = build_local_result(str(repo))
     codes = {flag.code for flag in result.flags}
     assert "AUTH_OR_SECRET" in codes
-    assert result.verdict == "BLOCK"
+    assert result.verdict == "QUARANTINE"
 
 
 def test_base_ref_compares_branch_commits_only(repo: Path) -> None:
