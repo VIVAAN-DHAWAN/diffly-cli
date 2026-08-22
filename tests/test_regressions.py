@@ -198,6 +198,54 @@ def test_cli_exposes_interactive_and_diagnostics_commands():
     assert parser.parse_args(["setup"]).command == "setup"
 
 
+def test_interactive_menu_keeps_the_generated_explanation_section():
+    import diffly_cli.cli as cli
+    from diffly_cli.explainer import ExplanationResult
+
+    sections = cli.interactive_sections(ExplanationResult({"intent": "example"}, 0, "gpt-5-mini"))
+
+    assert [key for key, _, _ in sections] == ["verdict", "checks", "risks", "files", "explain"]
+    assert sections[-1][1] == "Explanation"
+
+
+def test_wizard_skips_the_ai_question_when_no_key_is_configured(monkeypatch):
+    import diffly_cli.cli as cli
+
+    captured: dict[str, argparse.Namespace] = {}
+    monkeypatch.delenv("DIFFLY_LLM_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(cli.sys.stdout, "isatty", lambda: True)
+    monkeypatch.setattr(cli, "_check_and_prompt_update", lambda: None)
+    monkeypatch.setattr(cli, "show_loading_screen", lambda message: None)
+    answers = iter(["acme/demo", "42"])
+    monkeypatch.setattr(cli.Prompt, "ask", staticmethod(lambda *a, **k: next(answers)))
+    monkeypatch.setattr(cli.Confirm, "ask", staticmethod(lambda *a, **k: False))
+
+    def fake_run_pr(args):
+        captured["args"] = args
+        return 0
+
+    monkeypatch.setattr(cli, "run_pr", fake_run_pr)
+
+    assert cli.run_wizard(build_parser()) == 0
+    assert captured["args"].explain is False
+
+
+def test_pr_not_found_error_explains_how_to_recover(monkeypatch):
+    import diffly_cli.cli as cli
+    from rich.console import Console
+
+    recorded = Console(record=True, width=100)
+    monkeypatch.setattr(cli, "console", recorded)
+    cli.render_pr_error(cli.RepoRef("acme", "demo"), 42, GitHubError("GitHub API 404 for /repos/acme/demo/pulls/42"))
+
+    output = recorded.export_text()
+    assert "Pull request not found" in output
+    assert "acme/demo#42" in output
+    assert "paste the full pull-request URL" in output
+
+
 def test_zero_argument_invocation_uses_wizard(monkeypatch):
     import diffly_cli.cli as cli
 
