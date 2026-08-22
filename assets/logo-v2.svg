@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
+  <title id="title">Diffly logo</title>
+  <description id="description">A mint hexagonal code-diff mark with plus, slash, and minus symbols.</description>
+  <defs>
+    <linearGradient id="mint" x1="104" y1="88" x2="416" y2="424" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B9FFCB"/>
+      <stop offset=".45" stop-color="#68E5A4"/>
+      <stop offset="1" stop-color="#2EB67D"/>
+    </linearGradient>
+    <linearGradient id="core" x1="138" y1="112" x2="375" y2="405" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#16211F"/>
+      <stop offset="1" stop-color="#0A1114"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <path d="M256 52 431 153v206L256 460 81 359V153L256 52Z" fill="#0A1114"/>
+  <path d="M256 52 431 153v206L256 460 81 359V153L256 52Z" fill="none" stroke="url(#mint)" stroke-width="18" stroke-linejoin="round"/>
+  <path d="M256 91 397 172v168L256 421 115 340V172L256 91Z" fill="url(#core)" stroke="#6FE9AA" stroke-opacity=".56" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M256 116 375 185v142L256 396 137 327V185L256 116Z" fill="none" stroke="#B9FFCB" stroke-opacity=".12" stroke-width="2" stroke-linejoin="round"/>
+
+  <g fill="url(#mint)" filter="url(#glow)">
+    <rect x="154" y="215" width="82" height="22" rx="11"/>
+    <rect x="184" y="185" width="22" height="82" rx="11"/>
+    <rect x="304" y="274" width="72" height="22" rx="11"/>
+    <path d="M271 177h25l-58 158h-25l58-158Z"/>
+  </g>
+
+  <g fill="#E9FFF0" opacity=".85">
+    <rect x="154" y="212" width="82" height="4" rx="2"/>
+    <rect x="304" y="271" width="72" height="4" rx="2"/>
+    <path d="m272 177 7 0-58 158h-7l58-158Z"/>
+  </g>
+</svg>

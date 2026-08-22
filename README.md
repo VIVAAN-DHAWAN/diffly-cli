@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" alt="diffly logo" width="280">
+  <img src="assets/logo-v2.svg" alt="diffly logo" width="280">
 </p>
 
 # ⚡ diffly
