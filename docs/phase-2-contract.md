@@ -28,4 +28,4 @@ The explainer receives PR metadata, deterministic flags and verdict, changed-fil
 
 ## Testing target
 
-Phase 2 is complete only when redaction, schema validation, prompt construction, API failure fallback, deterministic-verdict immutability, CLI integration, and at least one live public pull-request explanation are verified.
+Phase 2 is complete only when redaction, schema validation, prompt construction, a clearly labelled local fallback, deterministic-verdict immutability, CLI integration, and at least one live public pull-request explanation are verified.

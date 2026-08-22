@@ -4,6 +4,25 @@ All notable changes to diffly are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-08-22
+
+Diffly 1.0.0 is the first production-ready release of the deterministic pull-request triage workflow. It stabilizes the command-line experience, interactive review, local analysis, GitHub Action, and explanation behavior around a clear three-outcome policy: healthy pull requests pass, focused review gates quarantine, and severe failures block.
+
+### Added
+
+- Reliable opted-in explanations: Diffly uses the configured AI provider when available and otherwise renders a clearly labelled local explanation from deterministic review facts.
+- Automatic reuse of an authenticated `gh` session when `GITHUB_TOKEN` is not set.
+- A centred terminal experience across the guided wizard, loading transition, interactive review, diagnostics, and focused report.
+- Local analysis, stable JSON output, interactive review, GitHub Action integration, an update workflow, diagnostics, and guided setup as supported 1.0.0 workflows.
+
+### Changed
+
+- Rebalanced verdicts so `PASS` is the normal healthy outcome. Missing obvious test coverage, unavailable checks, and incomplete repository-tree hints remain visible as review notes instead of automatically forcing `QUARANTINE`.
+- `QUARANTINE` is reserved for concrete review gates: security-sensitive code, database schema or migrations, dependency changes, and pending required checks.
+- `BLOCK` is reserved for failed required checks and high-confidence credential exposure in a changed hunk.
+- The guided prompts and recovery messages now give clearer next steps.
+- Updated Diffly’s visual identity with the refreshed logo and terminal loading mark.
+
 ### Fixed
 
 - Interactive mode no longer breaks imports on platforms without POSIX terminal support; it now falls back to the standard report.

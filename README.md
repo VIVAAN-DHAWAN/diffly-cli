@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://github.com/VIVAAN-DHAWAN/diffly-cli/actions/workflows/ci.yml"><img src="https://img.shields.io/badge/CI-passing-brightgreen?style=for-the-badge&logo=githubactions" alt="CI"></a>
-  <a href="https://github.com/VIVAAN-DHAWAN/diffly-cli/releases/latest"><img src="https://img.shields.io/badge/release-v0.4.0-blue?style=for-the-badge" alt="Release"></a>
+  <a href="https://github.com/VIVAAN-DHAWAN/diffly-cli/releases/latest"><img src="https://img.shields.io/badge/release-v1.0.0-blue?style=for-the-badge" alt="Release"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License: MIT"></a>
 </p>
@@ -140,6 +140,8 @@ For automation prefer `--json`: successful triage exits `0` regardless of verdic
 
 ### Optional AI explanation
 
+Every opted-in explanation is shown in the review. With an AI key, Diffly produces a bounded, redacted AI narrative; without one—or if the provider is unavailable—it creates a clearly labelled local explanation from deterministic review facts instead. Neither path can alter the verdict.
+
 ```bash
 export DIFFLY_LLM_API_KEY="your-key"
 export DIFFLY_LLM_BASE_URL="https://api.openai.com/v1"  # omit for the default endpoint
@@ -174,7 +176,7 @@ Live AI-explainer reports (deterministic verdict preserved): [ruff phase 2](demo
 
 ## Current limitations
 
-The Phase 2 explainer requires an OpenAI-compatible API key and never influences the verdict. Tree-sitter parsing covers symbols and direct calls visible in changed hunks, not a full repository-wide call graph. Test-coverage detection is heuristic (filenames + repository tree). Unavailable checks are quarantined rather than assumed passing. Model context is bounded and may truncate on very large PRs.
+Tree-sitter parsing covers symbols and direct calls visible in changed hunks, not a full repository-wide call graph. Test-coverage detection is heuristic (filenames + repository tree), so it is presented as a review note rather than a verdict gate. AI model context is bounded and may truncate on very large PRs. A local explanation is used when AI generation is not available.
 
 ## Roadmap
 
