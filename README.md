@@ -33,11 +33,6 @@ curl -fsSL https://raw.githubusercontent.com/VIVAAN-DHAWAN/diffly-cli/main/insta
 pip install diffly-cli
 ```
 
-**uv**
-```bash
-uv tool install diffly-cli
-```
-
 **Homebrew**
 ```bash
 brew install VIVAAN-DHAWAN/diffly-cli/diffly-cli
