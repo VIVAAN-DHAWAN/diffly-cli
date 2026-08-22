@@ -7,13 +7,10 @@ class DifflyCli < Formula
   sha256 "8823266f2755196933141edaa72b269f33d873ac09bd637925a2923550e99877"
   license "MIT"
 
-  depends_on "python@3.10" => :recommended
-  depends_on "python@3.11" => :recommended
-  depends_on "python@3.12" => :recommended
-  depends_on "python@3.13" => :recommended
+  depends_on "python@3.13"
 
   def install
-    virtualenv_install_with_resources
+    virtualenv_install_with_resources(using: "python@3.13")
   end
 
   test do
