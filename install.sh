@@ -11,8 +11,9 @@ if ! command -v python3 >/dev/null 2>&1; then
 fi
 
 python3 -m venv "${DIFFLY_HOME}"
-"${DIFFLY_HOME}/bin/python" -m pip install --upgrade pip >/dev/null
-"${DIFFLY_HOME}/bin/python" -m pip install --upgrade "${DIFFLY_SOURCE}"
+"${DIFFLY_HOME}/bin/python" -m pip install --upgrade pip >/dev/null 2>&1 || true
+printf 'Installing diffly-cli (this may take a minute)…\n'
+"${DIFFLY_HOME}/bin/python" -m pip install --upgrade --progress-bar on "${DIFFLY_SOURCE}"
 mkdir -p "${DIFFLY_BIN}"
 ln -sf "${DIFFLY_HOME}/bin/diffly" "${DIFFLY_BIN}/diffly"
 # Keep the old executable as a compatibility alias for existing scripts.

@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://github.com/VIVAAN-DHAWAN/diffly-cli/actions/workflows/ci.yml"><img src="https://img.shields.io/badge/CI-passing-brightgreen?style=for-the-badge&logo=githubactions" alt="CI"></a>
-  <a href="https://github.com/VIVAAN-DHAWAN/diffly-cli/releases/latest"><img src="https://img.shields.io/badge/release-v0.3.0-blue?style=for-the-badge" alt="Release"></a>
+  <a href="https://github.com/VIVAAN-DHAWAN/diffly-cli/releases/latest"><img src="https://img.shields.io/badge/release-v0.4.0-blue?style=for-the-badge" alt="Release"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License: MIT"></a>
 </p>
@@ -21,13 +21,49 @@
 
 ## Install
 
-One line. No GitHub CLI, no account, no config:
+Pick whichever fits your setup:
 
+**curl (recommended)**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/VIVAAN-DHAWAN/diffly-cli/main/install.sh | sh
 ```
 
-That's it. If `diffly` isn't found, add `~/.local/bin` to your `PATH` and open a new shell.
+**pip**
+```bash
+pip install diffly-cli
+```
+
+**uv**
+```bash
+uv tool install diffly-cli
+```
+
+**Homebrew**
+```bash
+brew install VIVAAN-DHAWAN/diffly-cli/diffly-cli
+```
+
+That's it. If `diffly` isn't found, add `~/.local/bin` to your `PATH` (curl/pip/uv) and open a new shell.
+
+### Upgrading from pre-0.4.0
+
+If you already have diffly installed but are on a version before 0.4.0 (which introduced the built-in update system), run the one-time upgrade script:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/VIVAAN-DHAWAN/diffly-cli/main/upgrade.sh | sh
+```
+
+This pulls in 0.4.0+, which has `diffly update` built in. From that point on, diffly will automatically check for new releases every time you run it and prompt you to update — no more manual upgrades needed.
+
+## Updating
+
+From 0.4.0 onwards, just run:
+
+```bash
+diffly update
+```
+
+Or simply start diffly normally — it will check for updates on launch and ask if you'd like to install the latest version. You can also choose to enable automatic updates so future versions install silently.
 
 ## Try it in 10 seconds
 
@@ -98,6 +134,7 @@ diffly pr astral-sh/ruff 27808 --output triage.md
 diffly pr astral-sh/ruff 27808 --json           # stable JSON for scripts
 diffly setup                                    # guided tutorial
 diffly doctor                                   # environment diagnostics
+diffly update                                   # check for and install the latest release
 ```
 
 For automation prefer `--json`: successful triage exits `0` regardless of verdict — enforce policy by reading the `verdict` field. Operational errors exit `2`.

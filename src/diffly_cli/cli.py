@@ -20,6 +20,7 @@ from rich.table import Table
 from rich.text import Text
 
 from . import __version__
+from . import update
 from .astmap import analyze_files
 from .explainer import ExplanationResult, generate_explanation
 from .diffparse import files_from_unified_diff
@@ -494,7 +495,9 @@ def run_doctor(_: argparse.Namespace) -> int:
     table = Table(title="diffly doctor", box=None, padding=(0, 2))
     table.add_column("Check", style="cyan")
     table.add_column("Status")
-    checks = [("Python", f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"), ("GitHub token", "configured" if os.environ.get("GITHUB_TOKEN") else "not set (public API only)"), ("Terminal", "interactive" if sys.stdin.isatty() else "non-interactive"), ("diffly executable", shutil.which("diffly") or "not on PATH")]
+    pref = update.get_update_preference()
+    update_status = {"auto": "auto-update enabled", "manual": "manual updates"}.get(pref, "not set (will prompt on startup)")
+    checks = [("Python", f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"), ("GitHub token", "configured" if os.environ.get("GITHUB_TOKEN") else "not set (public API only)"), ("Terminal", "interactive" if sys.stdin.isatty() else "non-interactive"), ("diffly executable", shutil.which("diffly") or "not on PATH"), ("Update preference", update_status)]
     for name, value in checks:
         table.add_row(name, value)
     console.print()
@@ -515,12 +518,130 @@ def run_version(_: argparse.Namespace) -> int:
     return 0
 
 
+def _prompt_update(latest_version: str) -> None:
+    """Ask the user whether to update now and whether to enable auto-updates.
+
+    Called when a newer version is available and the user has not opted into
+    automatic updates.  The function handles the full interactive flow:
+    download-now prompt, installation, and the follow-up auto-update question.
+    """
+    console.print()
+    console.print(
+        center(
+            Panel.fit(
+                f"[bold cyan]diffly[/] [bold yellow]{latest_version}[/] is available "
+                f"([dim]installed: {__version__}[/])\n\n"
+                "[dim]Release notes: https://github.com/VIVAAN-DHAWAN/diffly-cli/releases[/]",
+                border_style="yellow",
+                padding=(1, 3),
+            )
+        )
+    )
+    if not Confirm.ask(
+        "[cyan]Download and install the update now?[/]",
+        default=True,
+    ):
+        console.print("[dim]Skipping update — you can run [bold]diffly update[/] later.[/]")
+        return
+
+    with _progress(f"[cyan]Updating diffly to {latest_version}…[/]"):
+        success = update.install_update()
+
+    if success:
+        console.print(
+            center(
+                Panel.fit(
+                    f"[bold green]Updated to diffly {latest_version}[/]\n\n"
+                    "[dim]Restart diffly to use the new version.[/]",
+                    border_style="green",
+                    padding=(1, 2),
+                )
+            )
+        )
+        if Confirm.ask(
+            "[cyan]Would you like diffly to automatically update in the future?[/]",
+            default=False,
+        ):
+            update.set_update_preference("auto")
+            console.print("[dim]Auto-update enabled — diffly will update itself when new versions are released.[/]")
+        else:
+            update.set_update_preference("manual")
+            console.print("[dim]Manual updates — diffly will prompt you when a new version is available.[/]")
+    else:
+        console.print(
+            center(
+                Panel.fit(
+                    "[bold red]Update failed[/]\n\n"
+                    "[dim]Try running [bold]diffly update[/] or re-run the install script manually:\n"
+                    "curl -fsSL https://raw.githubusercontent.com/VIVAAN-DHAWAN/diffly-cli/main/install.sh | sh[/]",
+                    border_style="red",
+                    padding=(1, 2),
+                )
+            )
+        )
+
+
+def _check_and_prompt_update(*, skip_auto: bool = False) -> None:
+    """Check for updates and act according to the user's stored preference.
+
+    - ``auto``: silently install the update (unless *skip_auto* is true).
+    - ``manual`` or unset: prompt the user interactively.
+    - Non-interactive terminals: skip entirely.
+    """
+    if not sys.stdin.isatty() or not sys.stdout.isatty():
+        return
+
+    latest = update.check_for_update()
+    if latest is None:
+        return
+
+    preference = update.get_update_preference()
+    if preference == "auto" and not skip_auto:
+        with _progress(f"[cyan]Auto-updating diffly to {latest}…[/]"):
+            if update.install_update():
+                console.print(
+                    center(
+                        Panel.fit(
+                            f"[bold green]Auto-updated to diffly {latest}[/]",
+                            border_style="green",
+                            padding=(1, 2),
+                        )
+                    )
+                )
+                console.print()
+                sys.exit(0)
+        return
+
+    _prompt_update(latest)
+
+
+def run_update(_: argparse.Namespace) -> int:
+    """Manually check for and install the latest diffly release."""
+    console.print()
+    latest = update.check_for_update()
+    if latest is None:
+        console.print(
+            center(
+                Panel.fit(
+                    f"[bold green]diffly {__version__} is up to date[/]\n\n"
+                    "[dim]No newer release was found on PyPI.[/]",
+                    border_style="green",
+                    padding=(1, 2),
+                )
+            )
+        )
+        return 0
+    _prompt_update(latest)
+    return 0
+
+
 def run_wizard(parser: argparse.ArgumentParser) -> int:
     """Run the zero-argument first-use flow for human reviewers."""
     if not sys.stdin.isatty() or not sys.stdout.isatty():
         parser.print_help()
         return 2
     console.clear()
+    _check_and_prompt_update()
     console.print()
     console.print(center(Panel.fit(
         "[bold cyan]diffly[/]  [dim]Deterministic pull-request triage[/]\n"
@@ -629,6 +750,8 @@ def build_parser() -> argparse.ArgumentParser:
     help_command.set_defaults(func=run_help, root_parser=parser)
     setup = subparsers.add_parser("setup", help="Learn Diffly through a guided terminal tutorial")
     setup.set_defaults(func=run_setup, root_parser=parser)
+    update_cmd = subparsers.add_parser("update", help="Check for and install the latest diffly release")
+    update_cmd.set_defaults(func=run_update)
     return parser
 
 
@@ -638,6 +761,8 @@ def main(argv: list[str] | None = None) -> int:
     if not effective_argv:
         return run_wizard(parser)
     args = parser.parse_args(effective_argv)
+    if args.command not in ("update", "version", "help", "doctor"):
+        _check_and_prompt_update()
     return args.func(args)
 
 
