@@ -8,7 +8,7 @@ class DifflyCli < Formula
   depends_on "python@3.13"
 
   def install
-    python3 = Formula["python@3.13"].opt_bin/"python3"
+    python3 = Formula["python@3.13"].opt_bin/"python3.13"
     venv = libexec/"venv"
     system python3, "-m", "venv", venv
     venv_pip = venv/"bin/pip"
