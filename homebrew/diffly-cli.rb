@@ -3,7 +3,7 @@ class DifflyCli < Formula
 
   desc "Deterministic triage for large GitHub pull requests"
   homepage "https://github.com/VIVAAN-DHAWAN/diffly-cli"
-  url "https://files.pythonhosted.org/packages/source/d/diffly-cli/diffly-cli-0.4.0.tar.gz"
+  url "https://github.com/VIVAAN-DHAWAN/diffly-cli/releases/download/v0.4.0/diffly_cli-0.4.0.tar.gz"
   sha256 "8823266f2755196933141edaa72b269f33d873ac09bd637925a2923550e99877"
   license "MIT"
 
