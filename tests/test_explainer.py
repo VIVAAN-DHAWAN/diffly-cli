@@ -110,16 +110,18 @@ def test_model_output_is_redacted_before_validation():
     assert explanation.redactions >= 1
 
 
-def test_no_key_falls_back_without_calling_model(monkeypatch):
+def test_no_key_creates_a_local_explanation(monkeypatch):
     monkeypatch.delenv("DIFFLY_LLM_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     explanation = generate_explanation(result())
-    assert explanation.explanation is None
-    assert "No LLM API key configured" in explanation.error
+    assert explanation.explanation["narrative"]
+    assert explanation.source == "local"
+    assert "No AI API key" in explanation.warning
 
 
 def test_model_failure_is_safe():
     fake = FakeClient("not json")
     explanation = generate_explanation(result(), client=fake)
-    assert explanation.explanation is None
-    assert "failed safely" in explanation.error
+    assert explanation.explanation["narrative"]
+    assert explanation.source == "local"
+    assert "failed safely" in explanation.warning

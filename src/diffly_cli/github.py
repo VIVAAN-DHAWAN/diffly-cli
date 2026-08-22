@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any
 
 from . import __version__
@@ -17,6 +19,26 @@ class GitHubError(RuntimeError):
     pass
 
 
+@lru_cache(maxsize=1)
+def github_auth_token() -> str | None:
+    """Reuse an existing GitHub CLI sign-in without ever printing its token."""
+    configured = os.environ.get("GITHUB_TOKEN")
+    if configured:
+        return configured
+    try:
+        completed = subprocess.run(
+            ["gh", "auth", "token"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+    except (FileNotFoundError, subprocess.SubprocessError):
+        return None
+    token = completed.stdout.strip()
+    return token if completed.returncode == 0 and token else None
+
+
 @dataclass(frozen=True)
 class RepositoryTreeResult:
     paths: list[str]
@@ -25,7 +47,7 @@ class RepositoryTreeResult:
 
 class GitHubClient:
     def __init__(self, token: str | None = None, api_url: str = "https://api.github.com") -> None:
-        self.token = token or os.environ.get("GITHUB_TOKEN")
+        self.token = token or github_auth_token()
         self.api_url = api_url.rstrip("/")
 
     def request(self, path: str, *, accept: str = "application/vnd.github+json", params: dict[str, Any] | None = None) -> Any:

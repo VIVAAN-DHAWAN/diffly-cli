@@ -23,6 +23,8 @@ class ExplanationResult:
     redactions: int
     model: str | None
     error: str | None = None
+    source: str = "ai"
+    warning: str | None = None
 
 
 EXPLANATION_SCHEMA: dict[str, Any] = {
@@ -197,6 +199,56 @@ def validate_explanation(value: Any, allowed_files: set[str] | None = None) -> d
     return value
 
 
+def local_explanation(result: TriageResult, *, redactions: int, warning: str | None = None) -> ExplanationResult:
+    """Build a useful, offline explanation when an AI provider is unavailable.
+
+    This makes the requested explanation dependable: it is always based on the
+    same deterministic facts as the verdict and never sends code off-machine.
+    """
+    metadata = result.metadata
+    narrative: list[dict[str, Any]] = []
+    for file in result.files[:8]:
+        symbols = ", ".join(file.touched_symbols[:4]) or "no named symbols detected"
+        narrative.append(
+            {
+                "title": f"{file.status.title()} {file.path}",
+                "files": [file.path],
+                "explanation": (
+                    f"This file has {file.status} changes (+{file.additions}/-{file.deletions}). "
+                    f"Diffly detected {symbols}."
+                ),
+                "evidence": [f"{file.path}: {file.status}, +{file.additions}/-{file.deletions}"],
+                "snippet": "",
+            }
+        )
+    if not narrative:
+        narrative.append(
+            {
+                "title": "Review metadata",
+                "files": [],
+                "explanation": "No changed-file details were returned, so this explanation is limited to pull-request metadata and checks.",
+                "evidence": [f"Changed files reported: {metadata.changed_files}"],
+                "snippet": "",
+            }
+        )
+    questions = [flag.message for flag in result.flags[:8]] or ["Does the implementation match the pull request's intended behavior?"]
+    uncertainties: list[str] = []
+    check_state = result.checks.get("state", "unknown")
+    if check_state in {"pending", "unknown"}:
+        uncertainties.append(f"CI check state is {check_state}; review again after checks finish.")
+    explanation = {
+        "background": (
+            f"{metadata.owner}/{metadata.repo}#{metadata.number} changes {metadata.changed_files} file(s) "
+            f"with +{metadata.additions}/-{metadata.deletions} lines. Diffly's deterministic verdict is {result.verdict}."
+        ),
+        "intent": f"The pull request is titled “{metadata.title or 'Untitled pull request'}”. The steps below describe the changed files and review signals available locally.",
+        "narrative": narrative,
+        "review_questions": questions,
+        "uncertainties": uncertainties,
+    }
+    return ExplanationResult(explanation, redactions, None, source="local", warning=warning)
+
+
 def generate_explanation(result: TriageResult, *, client: ChatClient | None = None, api_key: str | None = None, base_url: str | None = None, model: str | None = None) -> ExplanationResult:
     context, redaction_count = build_context(result)
     selected_model = model or os.environ.get("DIFFLY_LLM_MODEL", DEFAULT_MODEL)
@@ -204,11 +256,19 @@ def generate_explanation(result: TriageResult, *, client: ChatClient | None = No
     selected_base = base_url or os.environ.get("DIFFLY_LLM_BASE_URL") or os.environ.get("OPENAI_API_BASE")
     if client is None:
         if not selected_key:
-            return ExplanationResult(None, redaction_count, selected_model, "No LLM API key configured; deterministic triage remains available.")
+            return local_explanation(
+                result,
+                redactions=redaction_count,
+                warning="No AI API key is configured, so Diffly generated this explanation locally.",
+            )
         try:
             client = OpenAIChatClient(selected_key, selected_base)
         except Exception as exc:
-            return ExplanationResult(None, redaction_count, selected_model, f"Could not initialize LLM client: {exc}")
+            return local_explanation(
+                result,
+                redactions=redaction_count,
+                warning=f"AI explanation could not start ({exc}); Diffly generated this explanation locally.",
+            )
     try:
         token_limit_key, token_limit = _token_limit_for_model(selected_model)
         raw = client.chat(
@@ -224,4 +284,8 @@ def generate_explanation(result: TriageResult, *, client: ChatClient | None = No
         explanation = validate_explanation(json.loads(safe_raw.text), allowed_files)
         return ExplanationResult(explanation, redaction_count, selected_model)
     except Exception as exc:
-        return ExplanationResult(None, redaction_count, selected_model, f"Literate-diff generation failed safely: {exc}")
+        return local_explanation(
+            result,
+            redactions=redaction_count,
+            warning=f"AI explanation failed safely ({exc}); Diffly generated this explanation locally.",
+        )

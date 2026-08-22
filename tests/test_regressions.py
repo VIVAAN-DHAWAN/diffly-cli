@@ -208,7 +208,7 @@ def test_interactive_menu_keeps_the_generated_explanation_section():
     assert sections[-1][1] == "Explanation"
 
 
-def test_wizard_skips_the_ai_question_when_no_key_is_configured(monkeypatch):
+def test_wizard_offers_a_local_explanation_when_no_key_is_configured(monkeypatch):
     import diffly_cli.cli as cli
 
     captured: dict[str, argparse.Namespace] = {}
@@ -220,7 +220,7 @@ def test_wizard_skips_the_ai_question_when_no_key_is_configured(monkeypatch):
     monkeypatch.setattr(cli, "show_loading_screen", lambda message: None)
     answers = iter(["acme/demo", "42"])
     monkeypatch.setattr(cli.Prompt, "ask", staticmethod(lambda *a, **k: next(answers)))
-    monkeypatch.setattr(cli.Confirm, "ask", staticmethod(lambda *a, **k: False))
+    monkeypatch.setattr(cli.Confirm, "ask", staticmethod(lambda *a, **k: True))
 
     def fake_run_pr(args):
         captured["args"] = args
@@ -229,7 +229,7 @@ def test_wizard_skips_the_ai_question_when_no_key_is_configured(monkeypatch):
     monkeypatch.setattr(cli, "run_pr", fake_run_pr)
 
     assert cli.run_wizard(build_parser()) == 0
-    assert captured["args"].explain is False
+    assert captured["args"].explain is True
 
 
 def test_pr_not_found_error_explains_how_to_recover(monkeypatch):
@@ -244,6 +244,23 @@ def test_pr_not_found_error_explains_how_to_recover(monkeypatch):
     assert "Pull request not found" in output
     assert "acme/demo#42" in output
     assert "paste the full pull-request URL" in output
+
+
+def test_github_client_reuses_an_authenticated_gh_session(monkeypatch):
+    import diffly_cli.github as github
+
+    github.github_auth_token.cache_clear()
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+
+    class Completed:
+        returncode = 0
+        stdout = "gho_example_token\n"
+
+    monkeypatch.setattr(github.subprocess, "run", lambda *args, **kwargs: Completed())
+    try:
+        assert github.GitHubClient().token == "gho_example_token"
+    finally:
+        github.github_auth_token.cache_clear()
 
 
 def test_zero_argument_invocation_uses_wizard(monkeypatch):
