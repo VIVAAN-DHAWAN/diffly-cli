@@ -9,6 +9,7 @@ import re
 import select
 import shutil
 import sys
+import time
 from typing import Any
 
 from rich.align import Align
@@ -32,11 +33,68 @@ from .triage import compute_flags, verdict_for
 console = Console()
 VERDICT_STYLES = {"PASS": "bold green", "SHIP": "bold green", "QUARANTINE": "bold yellow", "BLOCK": "bold red"}
 CONTENT_WIDTH = 100
+INTERACTIVE_SECTIONS = (
+    ("verdict", "Verdict", "The decision and the reasons behind it"),
+    ("checks", "Checks", "The latest CI and commit-status results"),
+    ("risks", "Risk flags", "Changes that need extra review"),
+    ("files", "Changed files", "The scope of the pull request"),
+)
 
 
 def center(renderable: Any) -> Any:
     """Horizontally center a renderable so screens feel composed, not left-hugging."""
     return Align.center(renderable, style="")
+
+
+def center_screen(renderable: Any, *, estimated_height: int) -> None:
+    """Clear the terminal and place a small interactive screen near its centre."""
+    console.clear()
+    top_padding = max((console.size.height - estimated_height) // 2, 0)
+    if top_padding:
+        console.print("\n" * top_padding, end="")
+    console.print(center(renderable))
+
+
+def _loading_mark(turn: str) -> Text:
+    """Render a terminal-safe stand-in for the existing Diffly logo.
+
+    Rich targets ordinary text terminals, where raster-image rotation is not
+    portable. The repository logo remains unchanged in ``assets/logo.png``;
+    this small + / − mark mirrors it for the short terminal animation.
+    """
+    mark = Text(justify="center")
+    mark.append("⬡ ", style="bold cyan")
+    mark.append("+ / −", style="bold white")
+    mark.append(f" {turn}", style="bold cyan")
+    return mark
+
+
+def show_loading_screen(message: str) -> None:
+    """Play a short, reduced-motion-friendly loading transition for TTY users."""
+    if not sys.stdout.isatty():
+        return
+    # Enter centre quickly, turn clockwise, pause, then settle upright.
+    frames = (("", 0.08), ("↻", 0.10), ("↻", 0.30), ("", 0.10))
+    for turn, duration in frames:
+        screen = Panel.fit(
+            Text.assemble(
+                _loading_mark(turn),
+                "\n\n",
+                (message, "dim"),
+            ),
+            border_style="cyan",
+            padding=(1, 4),
+        )
+        center_screen(screen, estimated_height=8)
+        time.sleep(duration)
+
+
+def interactive_sections(explanation: ExplanationResult | None) -> list[tuple[str, str, str]]:
+    """Return the report sections shown in the keyboard-driven review menu."""
+    sections = list(INTERACTIVE_SECTIONS)
+    if explanation is not None:
+        sections.append(("explain", "Explanation", "Optional generated context; never changes the verdict"))
+    return sections
 
 
 @dataclass(frozen=True)
@@ -290,47 +348,43 @@ def _section_lines(result: TriageResult, section: str, explanation: ExplanationR
 
 
 def interactive_view(result: TriageResult, explanation: ExplanationResult | None = None) -> None:
-    """Let a reviewer toggle report sections with up/down arrows and space."""
+    """Let a reviewer choose the report sections to include with the keyboard."""
     if not sys.stdin.isatty() or not sys.stdout.isatty():
-        console.print("[yellow]Interactive mode needs a terminal; showing the standard report instead.[/]")
+        console.print("[yellow]Interactive review needs a terminal. Showing the full report instead.[/]")
         console.print(Markdown(render_markdown(result, explanation)))
         return
     try:
         import termios
         import tty
     except ImportError:
-        console.print("[yellow]Interactive mode is unavailable on this platform; showing the standard report instead.[/]")
+        console.print("[yellow]Interactive review is unavailable on this platform. Showing the full report instead.[/]")
         console.print(Markdown(render_markdown(result, explanation)))
         return
-    labels = [("verdict", "Verdict"), ("checks", "Checks"), ("risks", "Risk flags"), ("files", "Changed files")]
-    if explanation is not None:
-        labels.append(("explain", "Explanation"))
-    try:
-        import termios
-        import tty
-    except ImportError:
-        console.print("[yellow]Interactive mode is unavailable on this platform; showing the standard report instead.[/]")
-        console.print(Markdown(render_markdown(result)))
-        return
-    labels = [("verdict", "Verdict"), ("checks", "Checks"), ("risks", "Risk flags"), ("files", "Changed files")]
-    enabled = {key: True for key, _ in labels}
+    labels = interactive_sections(explanation)
+    enabled = {key: True for key, _, _ in labels}
     cursor = 0
     fd = sys.stdin.fileno()
     old = termios.tcgetattr(fd)
     try:
         tty.setcbreak(fd)
         while True:
-            console.clear()
-            console.print(center(Panel.fit("[bold cyan]diffly interactive review[/]  [dim]↑/↓ move · space toggle · enter apply · q quit[/]", border_style="cyan")))
-            menu = Table(show_header=False, box=None, padding=(0, 2))
-            menu.add_column("", width=3)
-            menu.add_column("Section")
-            for index, (key, label) in enumerate(labels):
-                marker = "[cyan]›[/]" if index == cursor else " "
-                state = "[green]on[/]" if enabled[key] else "[dim]off[/]"
-                menu.add_row(marker, f"{label:<18} {state}")
-            console.print(center(menu))
-            console.print(center(Text.from_markup("[dim]Toggle sections to keep the review focused.[/]")))
+            menu = Table(show_header=False, box=None, padding=(0, 1), expand=False)
+            menu.add_column("", width=2)
+            menu.add_column("Section", min_width=16)
+            menu.add_column("Description", min_width=32)
+            menu.add_column("", justify="right", width=9)
+            for index, (key, label, description) in enumerate(labels):
+                marker = "[bold cyan]›[/]" if index == cursor else " "
+                state = "[bold green]Included[/]" if enabled[key] else "[dim]Hidden[/]"
+                menu.add_row(marker, f"[bold]{label}[/]", f"[dim]{description}[/]", state)
+            screen = Panel(
+                menu,
+                title="[bold cyan]DIFFLY[/]  [bold]Build your review[/]",
+                subtitle="[dim]↑ ↓ move  ·  Space include or hide  ·  Enter show review  ·  q quit[/]",
+                border_style="cyan",
+                padding=(1, 2),
+            )
+            center_screen(screen, estimated_height=len(labels) + 7)
             key = sys.stdin.read(1)
             if key in {"q", "Q"}:
                 return
@@ -345,16 +399,21 @@ def interactive_view(result: TriageResult, explanation: ExplanationResult | None
                     cursor = (cursor - 1) % len(labels)
                 elif sequence == "[B":
                     cursor = (cursor + 1) % len(labels)
-        console.clear()
-        result_table = Table(title=f"{result.metadata.owner}/{result.metadata.repo}#{result.metadata.number}", box=None, padding=(0, 1))
+        result_table = Table(show_header=True, header_style="bold cyan", box=None, padding=(0, 1))
         result_table.add_column("Section", style="cyan")
-        result_table.add_column("Details")
-        for key, label in labels:
+        result_table.add_column("Review details", max_width=CONTENT_WIDTH - 22)
+        for key, label, _ in labels:
             if enabled[key]:
                 details = "\n".join(_section_lines(result, key, explanation))
                 result_table.add_row(label, details)
-        console.print(center(result_table))
-        console.print()
+        screen = Panel(
+            result_table,
+            title=f"[bold cyan]DIFFLY REVIEW[/]  [bold]{result.metadata.owner}/{result.metadata.repo}#{result.metadata.number}[/]",
+            subtitle="[dim]Focused review generated from your selected sections[/]",
+            border_style="green",
+            padding=(1, 2),
+        )
+        center_screen(screen, estimated_height=min(console.size.height, len(labels) * 5 + 7))
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
@@ -430,6 +489,22 @@ def _emit_report(result: TriageResult, explanation: ExplanationResult | None, ar
     return 0
 
 
+def render_pr_error(ref: RepoRef, number: int, error: GitHubError) -> None:
+    """Show a concise recovery message for a failed pull-request lookup."""
+    if "GitHub API 404" in str(error):
+        body = (
+            f"[bold red]Pull request not found[/]\n"
+            f"[dim]{ref.slug}#{number} is unavailable. Check the repository, pull-request number, and your access.[/]\n\n"
+            "[dim]Private repositories require GITHUB_TOKEN. You can also paste the full pull-request URL to avoid entering the number manually.[/]"
+        )
+    else:
+        body = (
+            f"[bold red]Unable to inspect pull request[/]\n{error}\n\n"
+            "[dim]Check GITHUB_TOKEN, repository access, and your network connection. Run `diffly doctor` for diagnostics.[/]"
+        )
+    console.print(center(Panel.fit(body, border_style="red", padding=(1, 2))))
+
+
 def run_pr(args: argparse.Namespace) -> int:
     ref: RepoRef = args.repository
     number = args.number if args.number is not None else ref.pr_number
@@ -439,10 +514,12 @@ def run_pr(args: argparse.Namespace) -> int:
     owner, repo = ref.owner, ref.repo
     client = GitHubClient(token=args.token)
     try:
+        if getattr(args, "interactive", False):
+            show_loading_screen("Preparing your review…")
         with _progress(f"[cyan]Analyzing [bold]{ref.slug}#{number}[/] — fetching metadata, diffs, symbols, and checks…[/]"):
             result = build_result(client, owner, repo, number)
     except GitHubError as exc:
-        console.print(center(Panel.fit(f"[bold red]Unable to inspect pull request[/]\n{exc}\n\n[dim]Check GITHUB_TOKEN, repository access, and network connectivity. Run `diffly doctor` for diagnostics.[/]", border_style="red")))
+        render_pr_error(ref, number, exc)
         return 2
     if args.explain:
         with _progress("[cyan]Generating literate-diff explanation…[/]"):
@@ -469,6 +546,8 @@ def run_local(args: argparse.Namespace) -> int:
         console.print(center(Panel.fit(f"[bold red]Cannot analyze folder[/]\n{exc}\n\n[dim]Local mode works on any git checkout — including private or deleted repositories you still have on disk.[/]", border_style="red")))
         return 2
     try:
+        if getattr(args, "interactive", False):
+            show_loading_screen("Preparing your local review…")
         with _progress(f"[cyan]Analyzing [bold]{root.name}[/] ({scope}) — reading diffs and symbols locally…[/]"):
             result = build_local_result(str(root), base=args.base)
     except LocalAnalysisError as exc:
@@ -645,15 +724,15 @@ def run_wizard(parser: argparse.ArgumentParser) -> int:
     console.print()
     console.print(center(Panel.fit(
         "[bold cyan]diffly[/]  [dim]Deterministic pull-request triage[/]\n"
-        "[dim]Paste a repository or pull-request URL, answer two prompts, get a focused review.[/]",
+        "[bold]Start a focused review[/] by pasting a GitHub repository or pull-request URL.",
         border_style="cyan",
         padding=(1, 4),
     )))
-    console.print(center(Text.from_markup("[dim]Tip: scripted usage stays available with `diffly pr OWNER/REPO NUMBER --json`.\n[/]")))
-    console.print(center(Text.from_markup("[dim]Format: owner/repo · or paste any GitHub repository / pull-request URL[/]\n")))
+    console.print(center(Text.from_markup("[dim]Tip: for scripts and CI, use `diffly pr OWNER/REPO NUMBER --json`.\n[/]")))
+    console.print(center(Text.from_markup("[dim]Accepted: owner/repo, a GitHub repository URL, or a full pull-request URL.[/]\n")))
     while True:
         raw_repository = Prompt.ask(
-            "[cyan]Repository URL[/]",
+            "[cyan]Repository or pull-request URL[/]",
             default=os.environ.get("DIFFLY_REPOSITORY", ""),
             show_default=False,
         )
@@ -661,30 +740,41 @@ def run_wizard(parser: argparse.ArgumentParser) -> int:
             reference = parse_repo(raw_repository)
             break
         except argparse.ArgumentTypeError as exc:
-            console.print(f"[red]Invalid repository:[/] {exc} — use owner/repo or paste a GitHub URL.")
+            console.print(f"[red]That repository address is not valid.[/] {exc}\n[dim]Use owner/repo or paste a GitHub repository or pull-request URL.[/]")
     if reference.pr_number is not None:
         number = reference.pr_number
-        console.print(f"[dim]Using pull-request #{number} from the URL you entered.[/]")
+        console.print(f"[dim]Pull request #{number} was found in the URL.[/]")
     else:
         while True:
-            raw_number = Prompt.ask("[cyan]Pull request number[/]")
+            raw_number = Prompt.ask(f"[cyan]Pull-request number for {reference.slug}[/]")
             try:
                 number = positive_pr_number(raw_number)
                 break
             except argparse.ArgumentTypeError as exc:
-                console.print(f"[red]Invalid PR number:[/] {exc}")
+                console.print(f"[red]That pull-request number is not valid.[/] {exc}")
     token = os.environ.get("GITHUB_TOKEN")
     if not token:
-        console.print("[dim]No GITHUB_TOKEN found. Public repositories still work with lower API limits.[/]")
-    explain = Confirm.ask("[cyan]Add an optional AI-generated explanation?[/]", default=False)
+        console.print("[dim]No GitHub token found. Public repositories still work, with lower API limits.[/]")
+    llm_key = os.environ.get("DIFFLY_LLM_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    if llm_key:
+        explain = Confirm.ask(
+            "[cyan]Include an optional AI explanation?[/] [dim]It uses your configured API key and never changes the verdict.[/]",
+            default=False,
+        )
+    else:
+        explain = False
+        console.print(
+            "[yellow]AI explanation is not configured.[/] "
+            "[dim]Set DIFFLY_LLM_API_KEY (or OPENAI_API_KEY) to enable it; the deterministic review is ready now.[/]"
+        )
     if not explain:
-        console.print("[dim]Deterministic mode — nothing leaves your machine.[/]")
+        console.print("[dim]Deterministic review only — no code is sent to an AI service.[/]")
     console.print(center(Panel.fit(
-        f"[bold]Ready[/]  {reference.slug}#{number}\n"
-        f"[dim]Mode: {'deterministic + explanation' if explain else 'deterministic'} · output: interactive[/]",
+        f"[bold]Review ready[/]  {reference.slug}#{number}\n"
+        f"[dim]Mode: {'deterministic + AI explanation' if explain else 'deterministic only'} · interactive output[/]",
         border_style="green",
     )))
-    console.print(center(Text.from_markup("[dim]Crunching the diff — your focused review will appear shortly…\n[/]")))
+    console.print(center(Text.from_markup("[dim]Reading the pull request and preparing your review…\n[/]")))
     args = parser.parse_args(["pr", reference.slug, str(number)])
     args.token = token
     args.explain = explain
