@@ -32,9 +32,4 @@
     <path d="M271 177h25l-58 158h-25l58-158Z"/>
   </g>
 
-  <g fill="#E9FFF0" opacity=".85">
-    <rect x="154" y="212" width="82" height="4" rx="2"/>
-    <rect x="304" y="271" width="72" height="4" rx="2"/>
-    <path d="m272 177 7 0-58 158h-7l58-158Z"/>
-  </g>
 </svg>
