@@ -12,7 +12,7 @@
       <stop offset="1" stop-color="#0A1114"/>
     </linearGradient>
     <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feGaussianBlur stdDeviation="5" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
@@ -28,7 +28,7 @@
   <g fill="url(#mint)" filter="url(#glow)">
     <rect x="154" y="215" width="82" height="22" rx="11"/>
     <rect x="184" y="185" width="22" height="82" rx="11"/>
-    <rect x="226" y="274" width="72" height="22" rx="11"/>
+    <rect x="176" y="274" width="72" height="22" rx="11"/>
     <path d="M271 177h25l-58 158h-25l58-158Z"/>
   </g>
 
