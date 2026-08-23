@@ -6,6 +6,7 @@ All notable changes to diffly are documented here. The format follows [Keep a Ch
 
 ### Fixed
 
+- Fast keystroke bursts in the interactive review menu register every press: escape sequences stop at their terminator instead of swallowing neighboring keys.
 - Pressing an arrow key in the interactive review menu no longer crashes with `NameError: name '_read_escape_sequence' is not defined`; the escape-sequence reader is defined again and a lone Escape still exits without blocking.
 
 ## [1.0.0] - 2026-08-22

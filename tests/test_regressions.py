@@ -323,6 +323,7 @@ def test_interactive_menu_handles_arrow_keys_without_crashing(monkeypatch):
     master_fd, slave_fd = pty.openpty()
     stream = io.TextIOWrapper(os.fdopen(slave_fd, "rb", buffering=0))
     monkeypatch.setattr(cli.sys, "stdin", stream)
+    monkeypatch.setattr(cli.sys.stdout, "isatty", lambda: True)
     try:
         # Down, up, then Enter: exercises both arrow branches plus the final render.
         os.write(master_fd, "\x1b[B\x1b[A\r".encode())
@@ -330,3 +331,70 @@ def test_interactive_menu_handles_arrow_keys_without_crashing(monkeypatch):
     finally:
         stream.close()
         os.close(master_fd)
+
+
+def test_interactive_menu_keeps_up_with_rapid_arrow_taps(monkeypatch):
+    """Regression: keystrokes arriving in one packet were swallowed by the
+    buffered reader, so fast arrow taps did nothing (and Enter could be eaten,
+    leaving the menu stuck)."""
+    import io
+    import os
+    import pty
+    import signal
+
+    import diffly_cli.cli as cli
+
+    master_fd, slave_fd = pty.openpty()
+    stream = io.TextIOWrapper(os.fdopen(slave_fd, "rb", buffering=0))
+    monkeypatch.setattr(cli.sys.stdout, "isatty", lambda: True)
+    monkeypatch.setattr(cli.sys, "stdin", stream)
+    old_alarm = signal.alarm(10)
+    try:
+        # Down, down, up in one burst, then Enter to leave the menu.
+        os.write(master_fd, "\x1b[B\x1b[B\x1b[A\r".encode())
+        cli.interactive_view(_triage_result())
+    finally:
+        signal.alarm(0)
+        stream.close()
+        os.close(master_fd)
+
+
+def test_menu_exits_when_stdin_reaches_eof(monkeypatch):
+    """Regression: a closed input stream used to spin the redraw loop forever."""
+    import io
+    import os
+    import pty
+    import signal
+
+    import diffly_cli.cli as cli
+
+    master_fd, slave_fd = pty.openpty()
+    stream = io.TextIOWrapper(os.fdopen(slave_fd, "rb", buffering=0))
+    monkeypatch.setattr(cli.sys.stdout, "isatty", lambda: True)
+    monkeypatch.setattr(cli.sys, "stdin", stream)
+    old_alarm = signal.alarm(10)
+    try:
+        os.close(master_fd)
+        cli.interactive_view(_triage_result())
+    finally:
+        signal.alarm(0)
+        stream.close()
+
+
+def test_escape_sequence_reader_consumes_exactly_one_sequence(monkeypatch):
+    """Regression: the reader used to drain up to 16 bytes, so a burst like
+    '↓ space ↓' lost its Space/Enter to the escape reader and the menu hung."""
+    import os
+
+    import diffly_cli.cli as cli
+
+    read_fd, write_fd = os.pipe()
+    monkeypatch.setattr(cli.sys.stdin, "fileno", lambda: read_fd)
+    try:
+        os.write(write_fd, b"[A\x1b[B")
+        assert cli._read_escape_sequence(0.5) == "[A"
+        assert os.read(read_fd, 1) == b"\x1b"  # next keystroke must be untouched
+        assert cli._read_escape_sequence(0.5) == "[B"
+    finally:
+        os.close(read_fd)
+        os.close(write_fd)
