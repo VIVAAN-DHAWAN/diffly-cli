@@ -360,6 +360,28 @@ def _section_lines(result: TriageResult, section: str, explanation: ExplanationR
     return [f"{item.path}  +{item.additions}/-{item.deletions}" for item in result.files[:80]] or ["No changed files returned."]
 
 
+def _read_escape_sequence(timeout: float = 0.05) -> str:
+    """Collect the bytes that follow an Escape keypress (e.g. ``[A`` for ↑).
+
+    A lone Escape press sends no further bytes, so the read stops as soon as
+    the input goes quiet instead of blocking the menu.
+    """
+    chunks: list[str] = []
+    while True:
+        ready, _, _ = select.select([sys.stdin.fileno()], [], [], timeout)
+        if not ready:
+            break
+        try:
+            data = os.read(sys.stdin.fileno(), 16)
+        except OSError:
+            break
+        if not data:
+            break
+        chunks.append(data.decode("utf-8", errors="replace"))
+        timeout = min(timeout, 0.02)
+    return "".join(chunks)
+
+
 def interactive_view(result: TriageResult, explanation: ExplanationResult | None = None) -> None:
     """Let a reviewer choose the report sections to include with the keyboard."""
     if not sys.stdin.isatty() or not sys.stdout.isatty():

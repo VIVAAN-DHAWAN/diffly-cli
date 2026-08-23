@@ -275,3 +275,58 @@ def test_zero_argument_invocation_uses_wizard(monkeypatch):
     monkeypatch.setattr(cli, "run_wizard", fake_wizard)
     assert cli.main([]) == 0
     assert "parser" in called
+
+
+def _triage_result():
+    from diffly_cli.models import TriageResult
+
+    return TriageResult(metadata=metadata(), files=[], flags=[], verdict="PASS", reasoning=["ok"], checks={}, source="github")
+
+
+def test_escape_sequence_reader_returns_arrow_codes(monkeypatch):
+    import os
+
+    import diffly_cli.cli as cli
+
+    read_fd, write_fd = os.pipe()
+    monkeypatch.setattr(cli.sys.stdin, "fileno", lambda: read_fd)
+    try:
+        os.write(write_fd, b"[A")
+        assert cli._read_escape_sequence(0.5) == "[A"
+    finally:
+        os.close(read_fd)
+        os.close(write_fd)
+
+
+def test_escape_sequence_reader_treats_a_lone_escape_as_empty(monkeypatch):
+    import os
+
+    import diffly_cli.cli as cli
+
+    read_fd, write_fd = os.pipe()
+    monkeypatch.setattr(cli.sys.stdin, "fileno", lambda: read_fd)
+    try:
+        assert cli._read_escape_sequence(0.01) == ""
+    finally:
+        os.close(read_fd)
+        os.close(write_fd)
+
+
+def test_interactive_menu_handles_arrow_keys_without_crashing(monkeypatch):
+    """Regression: pressing an arrow key used to raise NameError (_read_escape_sequence missing)."""
+    import io
+    import os
+    import pty
+
+    import diffly_cli.cli as cli
+
+    master_fd, slave_fd = pty.openpty()
+    stream = io.TextIOWrapper(os.fdopen(slave_fd, "rb", buffering=0))
+    monkeypatch.setattr(cli.sys, "stdin", stream)
+    try:
+        # Down, up, then Enter: exercises both arrow branches plus the final render.
+        os.write(master_fd, "\x1b[B\x1b[A\r".encode())
+        cli.interactive_view(_triage_result())
+    finally:
+        stream.close()
+        os.close(master_fd)
