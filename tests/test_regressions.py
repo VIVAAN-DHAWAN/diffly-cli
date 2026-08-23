@@ -398,3 +398,20 @@ def test_escape_sequence_reader_consumes_exactly_one_sequence(monkeypatch):
     finally:
         os.close(read_fd)
         os.close(write_fd)
+
+
+def test_setup_delegates_the_update_check_to_the_wizard(monkeypatch):
+    """Regression: `diffly setup` used to run the update check twice — once in
+    main() and again inside the wizard it launches — prompting back to back."""
+    import diffly_cli.cli as cli
+
+    calls: list[str] = []
+    monkeypatch.setattr(cli, "_check_and_prompt_update", lambda: calls.append("check"))
+    monkeypatch.setattr(cli, "run_setup", lambda args: 0)
+    assert cli.main(["setup"]) == 0
+    assert calls == []
+
+    calls.clear()
+    monkeypatch.setattr(cli, "run_pr", lambda args: 0)
+    assert cli.main(["pr", "acme/demo", "1"]) == 0
+    assert calls == ["check"]
