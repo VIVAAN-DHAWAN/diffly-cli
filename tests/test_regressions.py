@@ -468,23 +468,24 @@ def test_truncated_diff_block_with_prelude_but_no_hunks_counts_nothing():
     assert file.deletions == 0
 
 
-def test_secret_on_plus_prefixed_content_line_blocks_the_pr():
+def test_secret_on_plus_prefixed_content_line_is_detected():
     """Regression: content beginning with ++ made the whole diff line look like
-    the file's +++ header, hiding it from counting and the secret scan."""
+    the file's +++ header, hiding it from counting and the secret scan. The
+    credential must be flagged; production paths block, tests/docs quarantine."""
     from diffly_cli.models import ChangedFile
     from diffly_cli.triage import compute_flags, verdict_for
 
     patch = (
-        "diff --git a/docs/deploy.md b/docs/deploy.md\n"
-        "--- a/docs/deploy.md\n"
-        "+++ b/docs/deploy.md\n"
+        "diff --git a/deploy/config.py b/deploy/config.py\n"
+        "--- a/deploy/config.py\n"
+        "+++ b/deploy/config.py\n"
         "@@ -1,2 +1,3 @@\n"
         " intro\n"
         "+++ postgresql://admin:hunter2@db.internal.example/prod\n"
     )
-    files = [ChangedFile(path="docs/deploy.md", status="modified", additions=1, deletions=0, changes=1, patch=patch)]
+    files = [ChangedFile(path="deploy/config.py", status="modified", additions=1, deletions=0, changes=1, patch=patch)]
     checks = {"state": "success", "count": 1, "repository_tree_complete": True}
-    flags = compute_flags(metadata(), files, checks, ["docs/deploy.md"])
+    flags = compute_flags(metadata(), files, checks, ["deploy/config.py"])
     codes = {flag.code for flag in flags}
     assert "EXPOSED_SECRET" in codes
     assert files[0].additions == 1

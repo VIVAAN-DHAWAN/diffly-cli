@@ -154,9 +154,9 @@ Default model is `gpt-5-mini`; override with `DIFFLY_LLM_MODEL` or `--llm-model`
 
 | Verdict | Rule |
 | --- | --- |
-| **BLOCK** | A required check failed, or the changed hunk appears to add a credential-like value. |
-| **QUARANTINE** | Security-sensitive code, database schema/migrations, dependency changes, or still-pending checks need focused review. |
-| **PASS** | No blocking or quarantine rule fired. Missing obvious tests and unavailable checks stay visible as review notes, but do not turn an otherwise healthy PR into `QUARANTINE`. `SHIP` remains accepted as a legacy alias. |
+| **BLOCK** | A required check failed, or production code appears to add a credential-like value. |
+| **QUARANTINE** | Security-sensitive code, database schema/migrations, or newly added dependencies need focused review. Credential-like values limited to tests, fixtures, or docs also quarantine rather than block. |
+| **PASS** | Healthy changes, ready to merge. Pending or unavailable checks, version-bump-only manifest edits, and missing obvious tests stay visible as review notes, not gates. `SHIP` remains accepted as a legacy alias. |
 
 `PASS` is the normal healthy outcome. A verdict is a review signal, not a claim that a PR is correct or safe in every context.
 

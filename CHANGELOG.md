@@ -11,6 +11,12 @@ All notable changes to diffly are documented here. The format follows [Keep a Ch
 - `diffly setup` no longer runs the update check twice in a row (once in `main()` and again inside the wizard it launches).
 - Pressing an arrow key in the interactive review menu no longer crashes with `NameError: name '_read_escape_sequence' is not defined`; the escape-sequence reader is defined again and a lone Escape still exits without blocking.
 
+### Changed
+
+- Verdicts rebalanced around merge-readiness: pending required checks and version-bump-only manifest edits are now review notes instead of quarantine gates, so healthy pull requests pass.
+- `BLOCK` is reserved for major signals only — failed required checks, or credential-like values added to production code. Credential-like values limited to tests, fixtures, or docs quarantine for confirmation instead of blocking.
+- `QUARANTINE` now targets newly added dependencies; lockfile refreshes and version bumps without new packages stay visible as notes.
+
 ## [1.0.0] - 2026-08-22
 
 Diffly 1.0.0 is the first production-ready release of the deterministic pull-request triage workflow. It stabilizes the command-line experience, interactive review, local analysis, GitHub Action, and explanation behavior around a clear three-outcome policy: healthy pull requests pass, focused review gates quarantine, and severe failures block.

@@ -36,16 +36,41 @@ def test_exposed_credential_blocks():
     assert "credential-like value" in reasoning[0]
 
 
-def test_dependency_and_missing_tests_quarantines():
+def test_manifest_touch_without_new_packages_is_a_review_note():
+    """Regression: any manifest edit used to quarantine; version bumps are routine."""
     files = [
         ChangedFile("pyproject.toml", "modified", 1, 0, 1, '+dependencies = ["new-lib"]\n'),
         ChangedFile("src/new_module.py", "added", 3, 0, 3, "+def run():\n+    return 1\n"),
     ]
     flags = compute_flags(metadata(), files, {"state": "success", "count": 1}, ["pyproject.toml", "src/new_module.py"])
-    verdict, _ = verdict_for(flags, {"state": "success"})
+    verdict, reasoning = verdict_for(flags, {"state": "success"})
     assert "NEW_DEPENDENCY" in {flag.code for flag in flags}
     assert "NO_TEST_COVERAGE" in {flag.code for flag in flags}
+    assert verdict == "PASS"
+    assert any("dependency manifests changed" in item for item in reasoning)
+
+
+def test_truly_new_dependency_quarantines():
+    files = [
+        ChangedFile("requirements.txt", "modified", 1, 0, 2, "-flask==3.0.0\n+flask==3.1.0\n+left-pad==1.0.0\n"),
+    ]
+    flags = compute_flags(metadata(), files, {"state": "success", "count": 1}, ["requirements.txt"])
+    verdict, reasoning = verdict_for(flags, {"state": "success"})
     assert verdict == "QUARANTINE"
+    assert any("newly added dependencies" in item for item in reasoning)
+    named = next(flag for flag in flags if flag.code == "NEW_DEPENDENCY")
+    assert any("left-pad" in ev for ev in named.evidence)
+
+
+def test_version_bump_only_passes_with_a_note():
+    files = [
+        ChangedFile("requirements.txt", "modified", 1, 1, 2, "-requests==2.31.0\n+requests==2.32.0\n"),
+    ]
+    flags = compute_flags(metadata(), files, {"state": "success", "count": 1}, ["requirements.txt"])
+    verdict, reasoning = verdict_for(flags, {"state": "success"})
+    assert "NEW_DEPENDENCY" in {flag.code for flag in flags}
+    assert verdict == "PASS"
+    assert any("dependency manifests changed" in item for item in reasoning)
 
 
 def test_all_clear_ships():
@@ -74,11 +99,13 @@ def test_unknown_checks_do_not_downgrade_an_otherwise_healthy_pr():
     assert "status checks were unavailable" in reasoning[0]
 
 
-def test_pending_checks_quarantine():
-    flags = compute_flags(metadata(), [], {"state": "pending", "count": 1}, [])
+def test_pending_checks_are_a_review_note_not_a_gate():
+    """Regression: pending checks used to quarantine every PR analyzed before CI finished."""
+    file = ChangedFile("src/app.py", "modified", 1, 0, 1, "+value = compute()\n")
+    flags = compute_flags(metadata(), [file], {"state": "pending", "count": 1, "pending": ["ci/build"]}, ["tests/test_app.py"])
     verdict, reasoning = verdict_for(flags, {"state": "pending"})
     assert "CHECKS_PENDING" in {flag.code for flag in flags}
-    assert verdict == "QUARANTINE"
+    assert verdict == "PASS"
     assert any("still running" in item for item in reasoning)
 
 
@@ -99,3 +126,35 @@ def test_changed_line_numbers_ignore_no_newline_markers():
     )
     file.hunks = parse_hunks(file.patch)
     assert changed_line_numbers(file) == [1, 2]
+
+
+def test_credential_in_tests_quarantines_instead_of_blocking():
+    """Regression: fake credentials inside test fixtures used to hard-block PRs."""
+    file = ChangedFile(
+        "tests/fixtures/deploy.py",
+        "modified",
+        1,
+        0,
+        1,
+        '+DB_URL = "postgresql://admin:hunter2@db.internal.example/prod"\n',
+    )
+    flags = compute_flags(metadata(), [file], {"state": "success", "count": 1}, [])
+    verdict, reasoning = verdict_for(flags, {"state": "success"})
+    assert "EXPOSED_SECRET" in {flag.code for flag in flags}
+    assert verdict == "QUARANTINE"
+    assert any("outside production code" in item for item in reasoning)
+
+
+def test_credential_in_production_still_blocks():
+    file = ChangedFile(
+        "deploy/config.py",
+        "modified",
+        1,
+        0,
+        1,
+        '+DB_URL = "postgresql://admin:hunter2@db.internal.example/prod"\n',
+    )
+    flags = compute_flags(metadata(), [file], {"state": "success", "count": 1}, [])
+    verdict, reasoning = verdict_for(flags, {"state": "success"})
+    assert verdict == "BLOCK"
+    assert "production code" in reasoning[0]

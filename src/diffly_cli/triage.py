@@ -48,6 +48,25 @@ def _added_dependency_names(file: ChangedFile) -> list[str]:
     return sorted(dict.fromkeys(values))
 
 
+def _removed_dependency_names(file: ChangedFile) -> list[str]:
+    if file.path.rsplit("/", 1)[-1] not in DEPENDENCY_FILES:
+        return []
+    values: list[str] = []
+    for line in hunk_body_lines(file.patch):
+        if line.startswith("-"):
+            match = re.search(r"[\"']([@A-Za-z0-9_./-]+)[\"']\s*[:=]", line)
+            if match:
+                values.append(match.group(1))
+            elif re.search(r"^[-]\s*[A-Za-z0-9_.-]+[=<>~]", line):
+                values.append(line[1:].strip().split()[0])
+    return sorted(dict.fromkeys(values))
+
+
+def _dependency_base_name(name: str) -> str:
+    """Strip version constraints so a bumped pin matches its original install."""
+    return re.split(r"[=<>~!;\s@\[]", name, maxsplit=1)[0].lower()
+
+
 def _test_files(files: list[ChangedFile]) -> list[str]:
     return [file.path for file in files if _matches(file.path, TEST_PATTERNS)]
 
@@ -94,9 +113,11 @@ def compute_flags(metadata: PRMetadata, files: list[ChangedFile], checks: dict[s
 
     dependency_evidence: list[str] = []
     for file in files:
-        names = _added_dependency_names(file)
-        if names:
-            dependency_evidence.append(f"{file.path}: {', '.join(names)}")
+        file_added = _added_dependency_names(file)
+        removed_bases = {_dependency_base_name(name) for name in _removed_dependency_names(file)}
+        new_here = [name for name in file_added if _dependency_base_name(name) not in removed_bases]
+        if new_here:
+            dependency_evidence.append(f"{file.path}: {', '.join(new_here)}")
         elif file.path.rsplit("/", 1)[-1] in DEPENDENCY_FILES and file.additions > 0:
             dependency_evidence.append(file.path)
     if dependency_evidence:
@@ -133,20 +154,28 @@ def verdict_for(flags: list[RiskFlag], checks: dict[str, Any]) -> tuple[str, lis
     if "CHECKS_FAILED" in codes:
         reasoning.append("BLOCK because at least one status check failed.")
         return "BLOCK", reasoning
-    if "EXPOSED_SECRET" in codes:
-        reasoning.append("BLOCK because the pull request appears to add a credential-like value.")
+    secret_flag = next((flag for flag in flags if flag.code == "EXPOSED_SECRET"), None)
+    production_hits = [path for path in (secret_flag.evidence if secret_flag else []) if _is_production_file(path)]
+    if production_hits:
+        reasoning.append("BLOCK because a credential-like value was added to production code: " + ", ".join(f"`{path}`" for path in production_hits[:5]) + ".")
         return "BLOCK", reasoning
     if "AUTH_OR_SECRET" in codes:
         reasoning.append("QUARANTINE because authentication or security-sensitive code changed and needs focused review.")
     if "DATABASE_CHANGE" in codes:
         reasoning.append("QUARANTINE because database schema or migration changes require an explicit review gate.")
-    if "NEW_DEPENDENCY" in codes:
-        reasoning.append("QUARANTINE because dependency changes expand the supply-chain and runtime surface.")
-    if "CHECKS_PENDING" in codes:
-        reasoning.append("QUARANTINE because required checks are still running.")
+    dependency_flag = next((flag for flag in flags if flag.code == "NEW_DEPENDENCY"), None)
+    named_new = [evidence for evidence in (dependency_flag.evidence if dependency_flag else []) if ": " in evidence]
+    if named_new:
+        reasoning.append("QUARANTINE because newly added dependencies expand the supply-chain and runtime surface.")
+    if secret_flag is not None:
+        reasoning.append("QUARANTINE because a credential-like value appears only outside production code (tests, fixtures, or docs); confirm it is intentionally fake.")
     if reasoning:
         return "QUARANTINE", reasoning
     observations: list[str] = []
+    if "CHECKS_PENDING" in codes:
+        observations.append("required checks were still running")
+    if "NEW_DEPENDENCY" in codes and not named_new:
+        observations.append("dependency manifests changed without newly added packages")
     if "NO_TEST_COVERAGE" in codes:
         observations.append("no obvious test coverage was found for one or more production files")
     if "CHECKS_UNKNOWN" in codes:
