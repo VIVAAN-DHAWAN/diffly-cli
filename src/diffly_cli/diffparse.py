@@ -33,6 +33,28 @@ def parse_hunks(patch: str) -> list[Hunk]:
     return hunks
 
 
+def hunk_body_lines(patch: str) -> list[str]:
+    """Return the raw lines inside hunk bodies, excluding the file-header prelude.
+
+    Content lines may themselves begin with ``---`` or ``+++`` (removed CLI
+    flags, added Markdown headings), so header detection must stop at the
+    first ``@@`` marker instead of pattern-matching every line. Patches that
+    carry no ``@@`` marker at all are treated as body-only (bare hunks from
+    the GitHub files endpoint); a full ``diff --git`` block without hunks has
+    its prelude stripped.
+    """
+    lines = patch.splitlines()
+    for index, line in enumerate(lines):
+        if line.startswith("@@"):
+            return lines[index + 1 :]
+    if lines and lines[0].startswith("diff --git"):
+        for index, line in enumerate(lines):
+            if line.startswith("+++ "):
+                return lines[index + 1 :]
+        return []
+    return lines
+
+
 def files_from_unified_diff(diff: str) -> list[ChangedFile]:
     """Build ChangedFile objects from a raw GitHub unified diff."""
     blocks = re.split(r"(?=^diff --git a/)", diff, flags=re.MULTILINE)
@@ -50,8 +72,9 @@ def files_from_unified_diff(diff: str) -> list[ChangedFile]:
             status = "removed"
         elif re.search(r"^rename from ", block, flags=re.MULTILINE):
             status = "renamed"
-        additions = sum(1 for line in block.splitlines() if line.startswith("+") and not line.startswith("+++") )
-        deletions = sum(1 for line in block.splitlines() if line.startswith("-") and not line.startswith("---") )
+        body = hunk_body_lines(block)
+        additions = sum(1 for line in body if line.startswith("+"))
+        deletions = sum(1 for line in body if line.startswith("-"))
         file = ChangedFile(path=path, status=status, additions=additions, deletions=deletions, changes=additions + deletions, patch=block)
         file.hunks = parse_hunks(block)
         files.append(file)
@@ -89,12 +112,8 @@ def language_for_path(path: str) -> str | None:
 
 def added_source(patch: str) -> str:
     lines = []
-    for line in patch.splitlines():
-        if line.startswith("+++") or line.startswith("---"):
-            continue
-        if line.startswith("+"):
-            lines.append(line[1:])
-        elif line.startswith(" "):
+    for line in hunk_body_lines(patch):
+        if line.startswith("+") or line.startswith(" "):
             lines.append(line[1:])
     return "\n".join(lines)
 

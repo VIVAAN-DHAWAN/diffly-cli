@@ -5,6 +5,7 @@ import re
 from collections import defaultdict
 from typing import Any
 
+from .diffparse import hunk_body_lines
 from .models import ChangedFile, PRMetadata, RiskFlag
 from .redact import redact_secrets
 
@@ -37,8 +38,8 @@ def _added_dependency_names(file: ChangedFile) -> list[str]:
     if file.path.rsplit("/", 1)[-1] not in DEPENDENCY_FILES:
         return []
     values: list[str] = []
-    for line in file.patch.splitlines():
-        if line.startswith("+") and not line.startswith("+++"):
+    for line in hunk_body_lines(file.patch):
+        if line.startswith("+"):
             match = re.search(r"[\"']([@A-Za-z0-9_./-]+)[\"']\s*[:=]", line)
             if match:
                 values.append(match.group(1))
@@ -63,7 +64,7 @@ def _covered_by_test(file: ChangedFile, test_paths: list[str]) -> list[str]:
 
 def _has_exposed_secret(file: ChangedFile) -> bool:
     """Detect a credential-like value added in the changed hunk, not just its path."""
-    added_lines = "\n".join(line[1:] for line in file.patch.splitlines() if line.startswith("+") and not line.startswith("+++"))
+    added_lines = "\n".join(line[1:] for line in hunk_body_lines(file.patch) if line.startswith("+"))
     # A generic ``token = os.getenv(...)`` assignment is common application
     # code, not evidence of an exposed credential. Block only on high-confidence
     # credential formats (keys, bearer tokens, private keys, connection URLs).
