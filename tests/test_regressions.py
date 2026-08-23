@@ -415,3 +415,96 @@ def test_setup_delegates_the_update_check_to_the_wizard(monkeypatch):
     monkeypatch.setattr(cli, "run_pr", lambda args: 0)
     assert cli.main(["pr", "acme/demo", "1"]) == 0
     assert calls == ["check"]
+
+
+def test_content_lines_looking_like_headers_are_still_counted():
+    """Regression: added/deleted lines whose content begins with ++/-- were
+    mistaken for the file's ---/+++ header lines and dropped from counts and
+    scans."""
+    from diffly_cli.diffparse import files_from_unified_diff
+
+    diff = (
+        "diff --git a/notes.md b/notes.md\n"
+        "index 0000001..0000002 100644\n"
+        "--- a/notes.md\n"
+        "+++ b/notes.md\n"
+        "@@ -1,3 +1,3 @@\n"
+        " intro\n"
+        "--- old banner\n"
+        "+++ new banner\n"
+        " tail\n"
+    )
+    file = files_from_unified_diff(diff)[0]
+    assert file.additions == 1
+    assert file.deletions == 1
+
+
+def test_github_json_patch_without_prelude_is_counted():
+    """Bare hunk bodies (GitHub files-endpoint patches) carry no @@ prelude and
+    must scan unchanged."""
+    from diffly_cli.diffparse import hunk_body_lines
+
+    body = hunk_body_lines("@@ -1,2 +1,2 @@\n-context\n+replacement\n")
+    assert sum(1 for line in body if line.startswith("+")) == 1
+    assert sum(1 for line in body if line.startswith("-")) == 1
+
+    bare = hunk_body_lines("+API_KEY = 'x'\n-context\n")
+    assert bare[0] == "+API_KEY = 'x'"
+    assert "-context" in bare
+
+
+def test_truncated_diff_block_with_prelude_but_no_hunks_counts_nothing():
+    from diffly_cli.diffparse import files_from_unified_diff
+
+    diff = (
+        "diff --git a/big.bin b/big.bin\n"
+        "index 0000001..0000002 100644\n"
+        "Binary files a/big.bin and b/big.bin differ\n"
+        "--- a/big.bin\n"
+        "+++ b/big.bin\n"
+    )
+    file = files_from_unified_diff(diff)[0]
+    assert file.additions == 0
+    assert file.deletions == 0
+
+
+def test_secret_on_plus_prefixed_content_line_blocks_the_pr():
+    """Regression: content beginning with ++ made the whole diff line look like
+    the file's +++ header, hiding it from counting and the secret scan."""
+    from diffly_cli.models import ChangedFile
+    from diffly_cli.triage import compute_flags, verdict_for
+
+    patch = (
+        "diff --git a/docs/deploy.md b/docs/deploy.md\n"
+        "--- a/docs/deploy.md\n"
+        "+++ b/docs/deploy.md\n"
+        "@@ -1,2 +1,3 @@\n"
+        " intro\n"
+        "+++ postgresql://admin:hunter2@db.internal.example/prod\n"
+    )
+    files = [ChangedFile(path="docs/deploy.md", status="modified", additions=1, deletions=0, changes=1, patch=patch)]
+    checks = {"state": "success", "count": 1, "repository_tree_complete": True}
+    flags = compute_flags(metadata(), files, checks, ["docs/deploy.md"])
+    codes = {flag.code for flag in flags}
+    assert "EXPOSED_SECRET" in codes
+    assert files[0].additions == 1
+    assert verdict_for(flags, checks)[0] == "BLOCK"
+
+
+def test_dependency_detection_survives_plus_prefixed_lines():
+    from diffly_cli.models import ChangedFile
+    from diffly_cli.triage import _added_dependency_names
+
+    patch = (
+        "diff --git a/package.json b/package.json\n"
+        "--- a/package.json\n"
+        "+++ b/package.json\n"
+        "@@ -1,3 +1,4 @@\n"
+        " {\n"
+        '+  "left-pad": "^1.3.0",\n'
+        "+  // +++ see docs\n"
+        '   "name": "x"\n'
+        " }\n"
+    )
+    names = _added_dependency_names(ChangedFile(path="package.json", status="modified", additions=2, deletions=0, changes=2, patch=patch))
+    assert names == ["left-pad"]

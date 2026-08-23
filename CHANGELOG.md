@@ -7,6 +7,7 @@ All notable changes to diffly are documented here. The format follows [Keep a Ch
 ### Fixed
 
 - Fast keystroke bursts in the interactive review menu register every press: escape sequences stop at their terminator instead of swallowing neighboring keys.
+- Diff content lines beginning with `++` or `--` are counted, scanned for credentials, and analyzed instead of being mistaken for the file's header lines.
 - `diffly setup` no longer runs the update check twice in a row (once in `main()` and again inside the wizard it launches).
 - Pressing an arrow key in the interactive review menu no longer crashes with `NameError: name '_read_escape_sequence' is not defined`; the escape-sequence reader is defined again and a lone Escape still exits without blocking.
 
