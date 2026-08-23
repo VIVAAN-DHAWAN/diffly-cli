@@ -907,7 +907,9 @@ def main(argv: list[str] | None = None) -> int:
     if not effective_argv:
         return run_wizard(parser)
     args = parser.parse_args(effective_argv)
-    if args.command not in ("update", "version", "help", "doctor"):
+    # `setup` ends in the wizard, which runs its own update check; checking
+    # here too would prompt the user twice in a row.
+    if args.command not in ("update", "version", "help", "doctor", "setup"):
         _check_and_prompt_update()
     return args.func(args)
 
