@@ -28,7 +28,7 @@
   <g fill="url(#mint)" filter="url(#glow)">
     <rect x="154" y="215" width="82" height="22" rx="11"/>
     <rect x="184" y="185" width="22" height="82" rx="11"/>
-    <rect x="176" y="274" width="72" height="22" rx="11"/>
+    <rect x="286" y="274" width="72" height="22" rx="11"/>
     <path d="M271 177h25l-58 158h-25l58-158Z"/>
   </g>
 
