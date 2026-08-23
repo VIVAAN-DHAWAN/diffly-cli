@@ -363,22 +363,30 @@ def _section_lines(result: TriageResult, section: str, explanation: ExplanationR
 def _read_escape_sequence(timeout: float = 0.05) -> str:
     """Collect the bytes that follow an Escape keypress (e.g. ``[A`` for ↑).
 
+    Reads one byte at a time and stops at the CSI final byte (``@``–``~``
+    after the ``[`` and any parameter bytes), so a burst of queued keystrokes
+    is never over-consumed — trailing keys stay available to the menu loop.
     A lone Escape press sends no further bytes, so the read stops as soon as
-    the input goes quiet instead of blocking the menu.
+    the input goes quiet instead of blocking.
     """
+    fd = sys.stdin.fileno()
     chunks: list[str] = []
     while True:
-        ready, _, _ = select.select([sys.stdin.fileno()], [], [], timeout)
+        ready, _, _ = select.select([fd], [], [], timeout)
         if not ready:
             break
         try:
-            data = os.read(sys.stdin.fileno(), 16)
+            data = os.read(fd, 1)
         except OSError:
             break
         if not data:
             break
-        chunks.append(data.decode("utf-8", errors="replace"))
-        timeout = min(timeout, 0.02)
+        char = data.decode("utf-8", errors="replace")
+        chunks.append(char)
+        if len(chunks) == 1 and char != "[":
+            break
+        if len(chunks) > 1 and "@" <= char <= "~":
+            break
     return "".join(chunks)
 
 
@@ -401,7 +409,9 @@ def interactive_view(result: TriageResult, explanation: ExplanationResult | None
     fd = sys.stdin.fileno()
     old = termios.tcgetattr(fd)
     try:
-        tty.setcbreak(fd)
+        # Pin TCSANOW: newer Pythons default setcbreak to TCSAFLUSH, which
+        # would silently discard any keys typed while the menu was rendering.
+        tty.setcbreak(fd, termios.TCSANOW)
         while True:
             menu = Table(show_header=False, box=None, padding=(0, 1), expand=False)
             menu.add_column("", width=2)
@@ -460,7 +470,9 @@ def interactive_view(result: TriageResult, explanation: ExplanationResult | None
         )
         center_screen(screen, estimated_height=min(console.size.height, len(labels) * 5 + 7))
     finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+        # TCSANOW, not TCSADRAIN: draining can block forever when the peer
+        # (CI ptys, expect harnesses) is not reading our echoed output.
+        termios.tcsetattr(fd, termios.TCSANOW, old)
 
 
 def build_result(client: GitHubClient, owner: str, repo: str, number: int) -> TriageResult:
