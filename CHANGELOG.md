@@ -4,6 +4,10 @@ All notable changes to diffly are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Fixed
+
+- Pressing an arrow key in the interactive review menu no longer crashes with `NameError: name '_read_escape_sequence' is not defined`; the escape-sequence reader is defined again and a lone Escape still exits without blocking.
+
 ## [1.0.0] - 2026-08-22
 
 Diffly 1.0.0 is the first production-ready release of the deterministic pull-request triage workflow. It stabilizes the command-line experience, interactive review, local analysis, GitHub Action, and explanation behavior around a clear three-outcome policy: healthy pull requests pass, focused review gates quarantine, and severe failures block.
