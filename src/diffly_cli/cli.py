@@ -420,8 +420,18 @@ def interactive_view(result: TriageResult, explanation: ExplanationResult | None
                 padding=(1, 2),
             )
             center_screen(screen, estimated_height=len(labels) + 7)
-            key = sys.stdin.read(1)
-            if key in {"q", "Q"}:
+            # Read every keystroke from the raw descriptor so the escape-sequence
+            # reader sees the same byte stream. Buffered sys.stdin.read(1) pulls a
+            # whole packet (e.g. two fast arrow taps) into its internal buffer,
+            # leaving the fd-level reader with nothing and silently dropping keys.
+            try:
+                raw = os.read(fd, 1)
+            except OSError:
+                return
+            if not raw:
+                return
+            key = raw.decode("utf-8", errors="replace")
+            if key in {"q", "Q", "\x04"}:
                 return
             if key in {"\r", "\n"}:
                 break

@@ -330,3 +330,49 @@ def test_interactive_menu_handles_arrow_keys_without_crashing(monkeypatch):
     finally:
         stream.close()
         os.close(master_fd)
+
+
+def test_interactive_menu_keeps_up_with_rapid_arrow_taps(monkeypatch):
+    """Regression: keystrokes arriving in one packet were swallowed by the
+    buffered reader, so fast arrow taps did nothing (and Enter could be eaten,
+    leaving the menu stuck)."""
+    import io
+    import os
+    import pty
+    import signal
+
+    import diffly_cli.cli as cli
+
+    master_fd, slave_fd = pty.openpty()
+    stream = io.TextIOWrapper(os.fdopen(slave_fd, "rb", buffering=0))
+    monkeypatch.setattr(cli.sys, "stdin", stream)
+    old_alarm = signal.alarm(10)
+    try:
+        # Down, down, up in one burst, then Enter to leave the menu.
+        os.write(master_fd, "\x1b[B\x1b[B\x1b[A\r".encode())
+        cli.interactive_view(_triage_result())
+    finally:
+        signal.alarm(0)
+        stream.close()
+        os.close(master_fd)
+
+
+def test_menu_exits_when_stdin_reaches_eof(monkeypatch):
+    """Regression: a closed input stream used to spin the redraw loop forever."""
+    import io
+    import os
+    import pty
+    import signal
+
+    import diffly_cli.cli as cli
+
+    master_fd, slave_fd = pty.openpty()
+    stream = io.TextIOWrapper(os.fdopen(slave_fd, "rb", buffering=0))
+    monkeypatch.setattr(cli.sys, "stdin", stream)
+    old_alarm = signal.alarm(10)
+    try:
+        os.close(master_fd)
+        cli.interactive_view(_triage_result())
+    finally:
+        signal.alarm(0)
+        stream.close()
